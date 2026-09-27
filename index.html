@@ -68,6 +68,12 @@ canvas{width:100%;height:90px;margin-top:12px;display:block}
 .stats span,.tile span{color:var(--muted);font-size:.8rem}
 .tile b{display:block;font-size:1.7rem;color:var(--lcd);font-variant-numeric:tabular-nums;margin:2px 0}
 .tile.na b{color:var(--gray);font-size:1.1rem}
+.tile.txt b{font-size:1rem;line-height:1.3}
+.tile small{display:block;color:var(--muted);font-size:.72rem;margin-top:4px}
+select{font:inherit;padding:11px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--text);flex:1 1 150px}
+.mon{display:flex;justify-content:space-between;gap:8px;background:var(--panel);border-radius:10px;padding:9px 12px;margin:6px 0}
+.mon b.ok{color:var(--ok)} .mon b.warn{color:var(--warn)}
+ol.steps{padding-left:22px;line-height:1.55} ol.steps li{margin:4px 0}
 
 .tw{overflow-x:auto}
 table{width:100%;border-collapse:collapse;font-size:.88rem;margin:8px 0}
@@ -100,7 +106,7 @@ pre{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padd
 <body>
 <main>
   <h1>ELM327 Scanner</h1>
-  <p class="sub">Tensão da bateria, dados ao vivo, códigos de falha e a ficha do adaptador. Tudo no navegador, sem instalar nada.</p>
+  <p class="sub">Tensão da bateria, sensores do motor, códigos de falha e a ficha do adaptador. Tudo no navegador, sem instalar nada.</p>
 
   <div id="banner" class="banner" role="alert"></div>
 
@@ -115,8 +121,9 @@ pre{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padd
   <nav class="tabs" role="tablist">
     <button role="tab" data-tab="painel" aria-selected="true">Tensão</button>
     <button role="tab" data-tab="ficha" aria-selected="false">Ficha</button>
-    <button role="tab" data-tab="vivo" aria-selected="false">Ao vivo</button>
+    <button role="tab" data-tab="vivo" aria-selected="false">Sensores</button>
     <button role="tab" data-tab="falhas" aria-selected="false">Falhas</button>
+    <button role="tab" data-tab="c3" aria-selected="false">Meu C3</button>
     <button role="tab" data-tab="ref" aria-selected="false">Referência</button>
     <button role="tab" data-tab="log" aria-selected="false">Log</button>
   </nav>
@@ -176,8 +183,19 @@ pre{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padd
 
   <!-- AO VIVO -->
   <section id="vivo" class="tab" role="tabpanel">
-    <p class="small muted">Lê os sensores em sequência pelo modo 01 do OBD-II. “n/s” = o carro não fornece esse dado.</p>
-    <div class="row"><button id="btnLive" class="primary" data-conn disabled>Iniciar leitura</button></div>
+    <p class="small muted">Lê pelo modo 01 do OBD-II os sensores que a central do motor disponibiliza. “n/s” = o carro não fornece esse dado. As referências valem para motor quente em marcha lenta.</p>
+    <div class="row">
+      <select id="liveMode" aria-label="Quais sensores ler">
+        <option value="main">Principais (atualiza mais rápido)</option>
+        <option value="all">Todos os suportados pelo carro</option>
+      </select>
+      <button id="btnLive" class="primary" data-conn disabled>Iniciar leitura</button>
+    </div>
+    <div class="row">
+      <button id="btnRec" data-conn disabled>Gravar CSV</button>
+      <button id="btnCsv" disabled>Baixar CSV (0 linhas)</button>
+    </div>
+    <p id="liveInfo" class="small muted" aria-live="polite"></p>
     <div id="tiles" class="tiles"></div>
   </section>
 
@@ -187,6 +205,10 @@ pre{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padd
       <button id="btnDtc" class="primary" data-conn disabled>Ler códigos (03)</button>
       <button id="btnDtcPend" data-conn disabled>Pendentes (07)</button>
       <button id="btnDtcClear" class="danger" data-conn disabled>Apagar códigos (04)</button>
+    </div>
+    <div class="row">
+      <button id="btnMon" data-conn disabled>Monitores de prontidão</button>
+      <button id="btnFreeze" data-conn disabled>Congelamento da falha (02)</button>
     </div>
     <div id="dtcOut"><div class="empty">Nenhuma leitura feita ainda.</div></div>
     <details>
@@ -198,6 +220,49 @@ pre{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padd
         <tr><td>Exemplo</td><td><code>P0301</code> = falha de combustão no cilindro 1</td></tr>
       </table></div>
     </details>
+  </section>
+
+  <!-- MEU C3 -->
+  <section id="c3" class="tab" role="tabpanel">
+    <h2>Citroën C3 2010 · 1.4 8V TU3JP</h2>
+    <dl class="kv">
+      <dt>Motor</dt><dd>TU3JP · 1.4 (1.360 cm³) · 8 válvulas · 4 cilindros · flex no Brasil</dd>
+      <dt>Tomada OBD</dt><dd>Embaixo do painel, do lado do motorista, perto da caixa de fusíveis. Às vezes fica atrás de uma tampinha.</dd>
+      <dt>Protocolo</dt><dd>Detectado sozinho pelo app. Se falhar, ele tenta um por um (CAN, KWP e ISO).</dd>
+    </dl>
+
+    <h3>O que o ELM327 lê neste carro</h3>
+    <p class="small">Só a central do <b>motor</b>, pelo OBD-II genérico: sensores, códigos de falha do motor, monitores, congelamento de falha e dados da ECU.</p>
+    <p class="small muted">ABS, airbag, BSI (a central da carroceria), painel, direção e reset de revisão usam o protocolo próprio da PSA. Para esses módulos é preciso o Diagbox/Lexia (a ferramenta oficial) ou um app com perfil PSA.</p>
+
+    <h3>Valores de referência (motor quente, marcha lenta)</h3>
+    <div class="tw"><table>
+      <tr><th>Sensor</th><th>Normal</th><th>Se estiver fora</th></tr>
+      <tr><td>RPM</td><td>750 – 950</td><td>Oscilando muito: corpo de borboleta sujo ou entrada falsa de ar</td></tr>
+      <tr><td>Temperatura do motor</td><td>85 – 105 °C</td><td>Não passa de 75 °C: válvula termostática aberta · acima de 110 °C: arrefecimento</td></tr>
+      <tr><td>Ajuste curto B1</td><td>−10 a +10 %</td><td>Oscilar em torno de zero é normal</td></tr>
+      <tr><td>Ajuste longo B1</td><td>−10 a +10 %</td><td>Acima de +15 %: mistura pobre (entrada de ar, bomba fraca, bico sujo) · abaixo de −15 %: mistura rica</td></tr>
+      <tr><td>Pressão do coletor (MAP)</td><td>25 – 45 kPa</td><td>Alta na lenta: entrada de ar ou compressão baixa</td></tr>
+      <tr><td>Avanço de ignição</td><td>5 – 20 °</td><td>Negativo ou instável: detonação ou sensor</td></tr>
+      <tr><td>Sonda O2 B1S1 (antes do catalisador)</td><td>Oscila de 0,1 a 0,9 V várias vezes por segundo</td><td>Parada em 0,4–0,5 V: sonda morta ou malha aberta</td></tr>
+      <tr><td>Sonda O2 B1S2 (depois do catalisador)</td><td>Estável entre 0,5 e 0,8 V</td><td>Oscilando igual à B1S1: catalisador gasto</td></tr>
+      <tr><td>Sistema de combustível</td><td>Malha fechada</td><td>Malha aberta com o motor quente: sonda ou falha</td></tr>
+      <tr><td>Carga do motor</td><td>15 – 35 %</td><td>Alta sem nada ligado: esforço extra ou sensor</td></tr>
+      <tr><td>Tensão (ATRV / ECU)</td><td>13,5 – 14,8 V</td><td>Abaixo de 13 V ligado: alternador</td></tr>
+    </table></div>
+    <p class="small muted">Referências gerais para motor a gasolina ou flex em bom estado. Não são dados de fábrica da PSA. No flex, o ajuste longo muda por alguns quilômetros depois de trocar de combustível, enquanto a ECU reaprende. O percentual de etanol (PID 52) geralmente não é informado: vai aparecer “n/s”.</p>
+
+    <h3>Roteiro do teste</h3>
+    <ol class="steps small">
+      <li><b>Chave em ON, motor desligado:</b> conecte e, na aba <b>Tensão</b>, confira a bateria (≥ 12,4 V).</li>
+      <li>Aba <b>Ficha</b> → <b>Gerar ficha completa</b>. A primeira detecção de protocolo pode levar até 15 s.</li>
+      <li>Aba <b>Falhas</b>: leia os códigos, os monitores e o congelamento <i>antes</i> de apagar qualquer coisa.</li>
+      <li><b>Ligue o motor</b> e espere a temperatura passar de 85 °C (aba <b>Sensores</b>, modo Principais).</li>
+      <li>Troque para <b>Todos os suportados</b>, toque em <b>Gravar CSV</b> e deixe 2 min em marcha lenta.</li>
+      <li>Segure em ~2.500 rpm por 30 s e solte. Pare a gravação e toque em <b>Baixar CSV</b>.</li>
+      <li>Baixe também a ficha (JSON) e o <b>Log</b>. Mande os 3 arquivos aqui para analisarmos.</li>
+    </ol>
+    <p class="small muted">Não use o app com o carro em movimento. Se precisar testar rodando, deixe outra pessoa dirigir.</p>
   </section>
 
   <!-- REFERÊNCIA -->
@@ -498,6 +563,7 @@ function onLost(){ if (!link) return; log('⚠ Conexão perdida'); disconnect();
 function stopLoops(){
   voltOn = false; $('btnLoop').textContent = 'Monitorar (1 s)';
   liveOn = false; $('btnLive').textContent = 'Iniciar leitura';
+  rec = false; $('btnRec').textContent = 'Gravar CSV';
 }
 
 /* ============ Tensão ============ */
@@ -558,31 +624,145 @@ $('btnCal').onclick = async () => {
 $('btnCalReset').onclick = async () => { await cmd('ATCV 0000').catch(() => {}); doRead(); };
 
 /* ============ Ficha ============ */
-const ficha = { conexao: {}, adaptador: {}, veiculo: {}, gatt: null };
+const ficha = { conexao: {}, adaptador: {}, veiculo: {}, monitores: {}, gatt: null };
 
-const PID_NAMES = {
-  0x01:'Status do monitor / luz de injeção',0x03:'Status do sistema de combustível',0x04:'Carga do motor',0x05:'Temperatura do motor',
-  0x06:'Ajuste de combustível curto B1',0x07:'Ajuste de combustível longo B1',0x0A:'Pressão de combustível',0x0B:'Pressão do coletor (MAP)',
-  0x0C:'RPM',0x0D:'Velocidade',0x0E:'Avanço de ignição',0x0F:'Temperatura do ar de admissão',0x10:'Fluxo de ar (MAF)',
-  0x11:'Posição da borboleta',0x13:'Sensores de O2 presentes',0x14:'Sonda O2 B1S1',0x15:'Sonda O2 B1S2',0x1C:'Padrão OBD',
-  0x1F:'Tempo desde a partida',0x21:'Distância com luz de injeção acesa',0x2C:'EGR comandada',0x2F:'Nível de combustível',
-  0x30:'Aquecimentos desde a limpeza de DTC',0x31:'Distância desde a limpeza de DTC',0x33:'Pressão barométrica',
-  0x42:'Tensão do módulo de controle',0x43:'Carga absoluta',0x44:'Relação ar/combustível comandada',0x45:'Posição relativa da borboleta',
-  0x46:'Temperatura ambiente',0x49:'Posição do pedal D',0x4C:'Atuador da borboleta comandado',0x51:'Tipo de combustível',
-  0x52:'Percentual de etanol',0x5C:'Temperatura do óleo',0x5E:'Consumo de combustível'
-};
 const OBD_STD = {1:'OBD-II (CARB, EUA)',2:'OBD (EPA, EUA)',3:'OBD e OBD-II',4:'OBD-I',5:'Não é compatível com OBD',
   6:'EOBD (Europa)',7:'EOBD e OBD-II',8:'EOBD e OBD',9:'EOBD, OBD e OBD-II',10:'JOBD (Japão)',11:'JOBD e OBD-II',12:'JOBD e EOBD',13:'JOBD, EOBD e OBD-II'};
+const FUEL_SYS = {1:'Malha aberta (motor frio)',2:'Malha fechada (sonda ativa)',4:'Malha aberta (carga ou desaceleração)',8:'Malha aberta (falha)',16:'Malha fechada com falha na sonda'};
+const FUEL_TYPE = {1:'Gasolina',2:'Metanol',3:'Etanol',4:'Diesel',5:'GLP',6:'GNV',8:'Elétrico',9:'Bicombustível (gasolina)',11:'Bicombustível (etanol)',16:'Híbrido gasolina',17:'Híbrido etanol',18:'Híbrido diesel',19:'Híbrido elétrico'};
 
-async function supportedPids(){
+/* Decodificação SAE J1979, modo 01. b = bytes A, B, C, D da resposta. */
+const w16 = b => b[0] * 256 + b[1];
+const s16 = b => { const v = w16(b); return v > 32767 ? v - 65536 : v; };
+const pct = b => Math.round(b[0] * 100 / 255);
+const trim = b => ((b[0] - 128) * 100 / 128).toFixed(1);
+const lambda = b => (w16(b) * 2 / 65536).toFixed(3);
+const temp = b => b[0] - 40;
+const PIDS = {
+  0x01:{ name:'Status do monitor / luz de injeção' },
+  0x03:{ name:'Sistema de combustível', t:b => FUEL_SYS[b[0]] || 'código ' + b[0] },
+  0x04:{ name:'Carga do motor', unit:'%', f:pct, ref:'15–35' },
+  0x05:{ name:'Temperatura do motor', unit:'°C', f:temp, ref:'85–105' },
+  0x06:{ name:'Ajuste curto B1', unit:'%', f:trim, ref:'−10 a +10' },
+  0x07:{ name:'Ajuste longo B1', unit:'%', f:trim, ref:'−10 a +10' },
+  0x08:{ name:'Ajuste curto B2', unit:'%', f:trim },
+  0x09:{ name:'Ajuste longo B2', unit:'%', f:trim },
+  0x0A:{ name:'Pressão de combustível', unit:'kPa', f:b => b[0] * 3 },
+  0x0B:{ name:'Pressão do coletor (MAP)', unit:'kPa', f:b => b[0], ref:'25–45' },
+  0x0C:{ name:'RPM', unit:'rpm', n:2, f:b => Math.round(w16(b) / 4), ref:'750–950' },
+  0x0D:{ name:'Velocidade', unit:'km/h', f:b => b[0] },
+  0x0E:{ name:'Avanço de ignição', unit:'°', f:b => (b[0] / 2 - 64).toFixed(1), ref:'5–20' },
+  0x0F:{ name:'Temp. ar de admissão', unit:'°C', f:temp },
+  0x10:{ name:'Fluxo de ar (MAF)', unit:'g/s', n:2, f:b => (w16(b) / 100).toFixed(2) },
+  0x11:{ name:'Posição da borboleta', unit:'%', f:pct },
+  0x13:{ name:'Sondas O2 instaladas', t:b => { const s = []; for (let i = 0; i < 8; i++) if (b[0] & (1 << i)) s.push('B' + (i < 4 ? 1 : 2) + 'S' + (i % 4 + 1)); return s.join(', ') || 'nenhuma'; } },
+  0x1C:{ name:'Padrão OBD', t:b => OBD_STD[b[0]] || 'código ' + b[0] },
+  0x1F:{ name:'Tempo desde a partida', unit:'s', n:2, f:w16 },
+  0x21:{ name:'Distância com luz acesa', unit:'km', n:2, f:w16 },
+  0x22:{ name:'Pressão do rail (rel. vácuo)', unit:'kPa', n:2, f:b => (w16(b) * 0.079).toFixed(1) },
+  0x23:{ name:'Pressão do rail', unit:'kPa', n:2, f:b => w16(b) * 10 },
+  0x2C:{ name:'EGR comandada', unit:'%', f:pct },
+  0x2D:{ name:'Erro da EGR', unit:'%', f:trim },
+  0x2E:{ name:'Purga do cânister', unit:'%', f:pct },
+  0x2F:{ name:'Nível de combustível', unit:'%', f:pct },
+  0x30:{ name:'Aquecimentos desde a limpeza', unit:'', f:b => b[0] },
+  0x31:{ name:'Distância desde a limpeza', unit:'km', n:2, f:w16 },
+  0x32:{ name:'Pressão do EVAP', unit:'Pa', n:2, f:b => (s16(b) / 4).toFixed(0) },
+  0x33:{ name:'Pressão barométrica', unit:'kPa', f:b => b[0] },
+  0x3C:{ name:'Temp. catalisador B1S1', unit:'°C', n:2, f:b => Math.round(w16(b) / 10 - 40) },
+  0x3D:{ name:'Temp. catalisador B2S1', unit:'°C', n:2, f:b => Math.round(w16(b) / 10 - 40) },
+  0x3E:{ name:'Temp. catalisador B1S2', unit:'°C', n:2, f:b => Math.round(w16(b) / 10 - 40) },
+  0x3F:{ name:'Temp. catalisador B2S2', unit:'°C', n:2, f:b => Math.round(w16(b) / 10 - 40) },
+  0x42:{ name:'Tensão da ECU', unit:'V', n:2, f:b => (w16(b) / 1000).toFixed(2), ref:'13,5–14,8' },
+  0x43:{ name:'Carga absoluta', unit:'%', n:2, f:b => Math.round(w16(b) * 100 / 255) },
+  0x44:{ name:'Lambda comandado', unit:'λ', n:2, f:lambda },
+  0x45:{ name:'Borboleta relativa', unit:'%', f:pct },
+  0x46:{ name:'Temperatura ambiente', unit:'°C', f:temp },
+  0x47:{ name:'Borboleta absoluta B', unit:'%', f:pct },
+  0x48:{ name:'Borboleta absoluta C', unit:'%', f:pct },
+  0x49:{ name:'Pedal do acelerador D', unit:'%', f:pct },
+  0x4A:{ name:'Pedal do acelerador E', unit:'%', f:pct },
+  0x4B:{ name:'Pedal do acelerador F', unit:'%', f:pct },
+  0x4C:{ name:'Borboleta comandada', unit:'%', f:pct },
+  0x4D:{ name:'Tempo com luz acesa', unit:'min', n:2, f:w16 },
+  0x4E:{ name:'Tempo desde a limpeza', unit:'min', n:2, f:w16 },
+  0x51:{ name:'Tipo de combustível', t:b => FUEL_TYPE[b[0]] || 'código ' + b[0] },
+  0x52:{ name:'Etanol no tanque', unit:'%', f:pct },
+  0x53:{ name:'Pressão absoluta do EVAP', unit:'kPa', n:2, f:b => (w16(b) / 200).toFixed(2) },
+  0x54:{ name:'Pressão do EVAP (ampla)', unit:'Pa', n:2, f:s16 },
+  0x55:{ name:'Ajuste curto sonda 2 · B1', unit:'%', f:trim },
+  0x56:{ name:'Ajuste longo sonda 2 · B1', unit:'%', f:trim },
+  0x57:{ name:'Ajuste curto sonda 2 · B2', unit:'%', f:trim },
+  0x58:{ name:'Ajuste longo sonda 2 · B2', unit:'%', f:trim },
+  0x59:{ name:'Pressão absoluta do rail', unit:'kPa', n:2, f:b => w16(b) * 10 },
+  0x5A:{ name:'Pedal relativo', unit:'%', f:pct },
+  0x5B:{ name:'Bateria híbrida', unit:'%', f:pct },
+  0x5C:{ name:'Temperatura do óleo', unit:'°C', f:temp },
+  0x5D:{ name:'Ponto de injeção', unit:'°', n:2, f:b => (w16(b) / 128 - 210).toFixed(1) },
+  0x5E:{ name:'Consumo', unit:'L/h', n:2, f:b => (w16(b) / 20).toFixed(1) },
+};
+['B1S1','B1S2','B1S3','B1S4','B2S1','B2S2','B2S3','B2S4'].forEach((s, i) => {
+  PIDS[0x14 + i] = { name:'Sonda O2 ' + s, unit:'V', f:b => (b[0] / 200).toFixed(3), ref: i === 0 ? 'oscila 0,1–0,9' : i === 1 ? '0,5–0,8 estável' : undefined };
+  PIDS[0x24 + i] = { name:'Sonda larga ' + s, unit:'λ', n:2, f:lambda };
+  PIDS[0x34 + i] = { name:'Sonda larga ' + s + ' (corrente)', unit:'λ', n:2, f:lambda };
+});
+function fmtPid(p, b){
+  const d = PIDS[p];
+  if (!d || !b || b.length < (d.n || 1)) return null;
+  return d.t ? d.t(b) : d.f ? d.f(b) : null;
+}
+
+// Tenta o automático; se o clone não achar, testa protocolo por protocolo
+async function detectProtocol(info = () => {}){
+  const ok = async t => {
+    if (!(await pidAll('00', t).catch(() => [])).length) return false;
+    state.proto = first(await cmd('ATDPN')).replace(/^A/i, '');
+    return true;
+  };
+  await cmd('ATSP0');
+  info('Detectando protocolo (automático)…');
+  if (await ok(15000)) return true;
+  for (const p of ['6', '5', '4', '3', '7', '8', '9']){
+    info('Automático falhou. Tentando protocolo ' + p + '…');
+    await cmd('ATSP' + p);
+    if (await ok(8000)) return true;
+  }
+  await cmd('ATSP0');
+  return false;
+}
+
+async function supportedPids(info){
   const set = new Set();
+  if (!(await detectProtocol(info))) return set;
   for (let base = 0; base <= 0xA0; base += 0x20){
-    const all = await pidAll(hex2(base), base ? 4000 : 15000).catch(() => []);
+    const all = await pidAll(hex2(base), 4000).catch(() => []);
     if (!all.length) break;
     for (const b of all) for (let i = 0; i < 32; i++) if (b[i >> 3] & (0x80 >> (i & 7))) set.add(base + i + 1);
     if (!set.has(base + 0x20)) break;
   }
   return set;
+}
+
+function readiness(b){
+  const [, B, C, D] = b, rows = [];
+  const add = (name, avail, incomplete) => { if (avail) rows.push([name, incomplete ? 'incompleto' : 'pronto']); };
+  add('Falha de combustão', B & 1, B & 0x10);
+  add('Sistema de combustível', B & 2, B & 0x20);
+  add('Componentes', B & 4, B & 0x40);
+  if (!(B & 0x08)){
+    ['Catalisador','Catalisador aquecido','Sistema evaporativo (EVAP)','Ar secundário','Ar-condicionado','Sonda lambda','Aquecimento da sonda','EGR']
+      .forEach((n, i) => add(n, C & (1 << i), D & (1 << i)));
+  }
+  return rows;
+}
+
+function ascii09(lines, mid){
+  const out = [];
+  for (let h of hexLines(lines)){
+    if (h.startsWith('49' + mid)) h = h.slice(6);
+    for (const x of bytesOf(h)) if (x >= 0x20 && x < 0x7F) out.push(String.fromCharCode(x));
+  }
+  return out.join('').trim() || null;
 }
 
 function decodeVIN(lines){
@@ -621,7 +801,7 @@ async function gerarFicha(){
     A['Original ou clone?'] = verdict;
   }
   await step('Detectando protocolo do carro (pode levar até 15 s)', async () => {
-    state.pids = await supportedPids();
+    state.pids = await supportedPids(s => $('fichaStep').textContent = s);
     V['Protocolo'] = first(await cmd('ATDP')).replace(/^AUTO,\s*/i, '');
     state.proto = first(await cmd('ATDPN')).replace(/^A/i, '');
     V['Protocolo (nº ELM)'] = state.proto;
@@ -632,12 +812,12 @@ async function gerarFicha(){
       const b = await pid('01'); if (!b) return;
       V['Luz de injeção (MIL)'] = (b[0] & 0x80) ? 'ACESA' : 'apagada';
       V['Códigos armazenados'] = b[0] & 0x7F;
+      if (b.length >= 4) ficha.monitores = Object.fromEntries(readiness(b));
     });
-    if (state.pids.has(0x1C)) await step('Padrão OBD', async () => { const b = await pid('1C'); if (b) V['Padrão OBD'] = OBD_STD[b[0]] || 'código ' + b[0]; });
-    if (state.pids.has(0x51)) await step('Combustível', async () => {
-      const b = await pid('51'); const F = {1:'Gasolina',3:'Etanol',4:'Diesel',8:'Elétrico',9:'Bicombustível (gasolina)',10:'Bicombustível (metanol)',11:'Bicombustível (etanol)',16:'Híbrido gasolina',17:'Híbrido etanol',18:'Híbrido diesel',19:'Híbrido elétrico'};
-      if (b) V['Combustível'] = F[b[0]] || 'código ' + b[0];
-    });
+    for (const [p, label] of [[0x1C, 'Padrão OBD'], [0x51, 'Combustível'], [0x03, 'Sistema de combustível'], [0x13, 'Sondas O2 instaladas']])
+      if (state.pids.has(p)) await step(label, async () => { const v = fmtPid(p, await pid(hex2(p))); if (v != null) V[label] = v; });
+    await step('Calibração da ECU', async () => { const s = ascii09(await cmd('0904', 8000), '04'); if (s) V['Calibração (0904)'] = s; });
+    await step('Nome da ECU', async () => { const s = ascii09(await cmd('090A', 8000), '0A'); if (s) V['Nome da ECU (090A)'] = s; });
     await step('Chassi (VIN)', async () => { const r = await cmd('0902', 8000); V['Chassi (VIN)'] = decodeVIN(r) || 'não informado pelo carro'; });
   }
   $('fichaStep').textContent = 'Ficha pronta · ' + new Date().toLocaleString();
@@ -647,11 +827,11 @@ async function gerarFicha(){
 function renderFicha(){
   const sec = (t, o) => o && Object.keys(o).length
     ? '<h3>' + t + '</h3><dl class="kv">' + Object.entries(o).map(([k, v]) => '<dt>' + esc(k) + '</dt><dd>' + esc(v) + '</dd>').join('') + '</dl>' : '';
-  let html = sec('Conexão', ficha.conexao) + sec('Adaptador', ficha.adaptador) + sec('Veículo', ficha.veiculo);
+  let html = sec('Conexão', ficha.conexao) + sec('Adaptador', ficha.adaptador) + sec('Veículo', ficha.veiculo) + sec('Monitores de prontidão', ficha.monitores);
   if (state.pids?.size){
     html += '<h3>PIDs suportados pelo carro</h3><div class="tw"><table>' +
       [...state.pids].filter(p => p % 0x20).sort((a, b) => a - b)
-        .map(p => '<tr><td><code>01' + hex2(p) + '</code></td><td>' + esc(PID_NAMES[p] || '—') + '</td></tr>').join('') + '</table></div>';
+        .map(p => '<tr><td><code>01' + hex2(p) + '</code></td><td>' + esc(PIDS[p]?.name || '—') + '</td></tr>').join('') + '</table></div>';
   }
   if (ficha.gatt?.length){
     html += '<h3>Serviços Bluetooth (GATT)</h3><pre>' + esc(ficha.gatt.map(s =>
@@ -661,7 +841,7 @@ function renderFicha(){
 }
 function fichaTexto(){
   const parts = [];
-  for (const [t, o] of [['CONEXÃO', ficha.conexao], ['ADAPTADOR', ficha.adaptador], ['VEÍCULO', ficha.veiculo]])
+  for (const [t, o] of [['CONEXÃO', ficha.conexao], ['ADAPTADOR', ficha.adaptador], ['VEÍCULO', ficha.veiculo], ['MONITORES', ficha.monitores]])
     if (Object.keys(o).length) parts.push(t + '\n' + Object.entries(o).map(([k, v]) => '  ' + k + ': ' + v).join('\n'));
   if (state.pids?.size) parts.push('PIDS SUPORTADOS\n  ' + [...state.pids].filter(p => p % 0x20).map(p => '01' + hex2(p)).join(' '));
   return parts.join('\n\n') || '(ficha vazia)';
@@ -675,38 +855,67 @@ $('btnFichaCopy').onclick = async () => {
 };
 
 /* ============ Ao vivo ============ */
-const LIVE = [
-  { p:'0C', name:'RPM', unit:'rpm', n:2, f:b => Math.round((b[0] * 256 + b[1]) / 4) },
-  { p:'0D', name:'Velocidade', unit:'km/h', f:b => b[0] },
-  { p:'05', name:'Temp. motor', unit:'°C', f:b => b[0] - 40 },
-  { p:'04', name:'Carga do motor', unit:'%', f:b => Math.round(b[0] * 100 / 255) },
-  { p:'11', name:'Borboleta', unit:'%', f:b => Math.round(b[0] * 100 / 255) },
-  { p:'0F', name:'Temp. ar admissão', unit:'°C', f:b => b[0] - 40 },
-  { p:'0B', name:'Pressão coletor', unit:'kPa', f:b => b[0] },
-  { p:'2F', name:'Combustível', unit:'%', f:b => Math.round(b[0] * 100 / 255) },
-  { p:'52', name:'Etanol no tanque', unit:'%', f:b => Math.round(b[0] * 100 / 255) },
-  { p:'42', name:'Tensão da ECU', unit:'V', n:2, f:b => ((b[0] * 256 + b[1]) / 1000).toFixed(2) },
-];
-$('tiles').innerHTML = LIVE.map(d => '<div class="tile" id="t' + d.p + '"><span>' + d.name + '</span><b>--</b><span>' + d.unit + '</span></div>').join('');
-function setTile(d, val, na){ const t = $('t' + d.p); t.classList.toggle('na', !!na); t.querySelector('b').textContent = val; }
+const MAIN = [0x0C, 0x0D, 0x05, 0x04, 0x0B, 0x0E, 0x11, 0x0F, 0x06, 0x07, 0x14, 0x15, 0x03, 0x42, 0x2F, 0x52];
+function liveList(){
+  const known = state.pids?.size ? state.pids : null;
+  const base = $('liveMode').value === 'all' && known ? [...known] : MAIN;
+  return base.filter(p => p !== 0x01 && PIDS[p] && (PIDS[p].f || PIDS[p].t) && (!known || known.has(p))).sort((a, b) => a - b);
+}
+function buildTiles(list){
+  $('tiles').innerHTML = list.map(p => { const d = PIDS[p];
+    return '<div class="tile" id="t' + hex2(p) + '"><span>' + esc(d.name) + '</span><b>--</b><span>' + (d.unit || '') + '</span>' +
+      (d.ref ? '<small>ref.: ' + d.ref + '</small>' : '') + '</div>'; }).join('');
+}
+function setTile(p, val, na){
+  const t = $('t' + hex2(p)); if (!t) return;
+  t.classList.toggle('na', !!na);
+  t.classList.toggle('txt', !na && PIDS[p].t != null);
+  t.querySelector('b').textContent = val;
+}
 
-let liveOn = false;
+let liveOn = false, rec = false;
+const csv = { cols: [], rows: [] };
+function csvLabel(){ $('btnCsv').textContent = 'Baixar CSV (' + csv.rows.length + ' linhas)'; $('btnCsv').disabled = !csv.rows.length; }
+
 async function liveLoop(){
-  if (!state.pids) state.pids = await supportedPids().catch(() => null);
+  const info = s => $('liveInfo').textContent = s;
+  $('liveMode').disabled = true;
+  if (!state.pids) state.pids = await supportedPids(info).catch(() => null);
+  const list = liveList();
+  if (list.join() !== csv.cols.join()){ csv.cols = list; csv.rows = []; csvLabel(); }
+  buildTiles(list);
+  info(state.pids?.size ? list.length + ' sensores' : 'O carro não respondeu à lista de PIDs. Tentando os principais mesmo assim.');
   while (liveOn && link){
-    for (const d of LIVE){
+    const t0 = performance.now(), row = [new Date().toLocaleTimeString()];
+    for (const p of list){
       if (!liveOn || !link) break;
-      if (state.pids?.size && !state.pids.has(parseInt(d.p, 16))){ setTile(d, 'n/s', true); continue; }
-      try { const b = await pid(d.p); b && b.length >= (d.n || 1) ? setTile(d, d.f(b)) : setTile(d, 'n/s', true); }
-      catch { setTile(d, 'erro', true); }
+      let v = null;
+      try { v = fmtPid(p, await pid(hex2(p))); setTile(p, v ?? 'n/s', v == null); }
+      catch { setTile(p, 'erro', true); }
+      row.push(v ?? '');
     }
-    await sleep(200);
+    if (rec && row.length === list.length + 1){ csv.rows.push(row); csvLabel(); }
+    info(list.length + ' sensores · ciclo de ' + ((performance.now() - t0) / 1000).toFixed(1) + ' s' + (rec ? ' · gravando' : ''));
+    await sleep(100);
   }
+  $('liveMode').disabled = false;
 }
 $('btnLive').onclick = () => {
   liveOn = !liveOn;
   $('btnLive').textContent = liveOn ? 'Parar leitura' : 'Iniciar leitura';
   if (liveOn) liveLoop();
+};
+$('btnRec').onclick = () => {
+  rec = !rec;
+  $('btnRec').textContent = rec ? 'Parar gravação' : 'Gravar CSV';
+  if (rec && !liveOn) $('btnLive').click();
+};
+$('btnCsv').onclick = () => {
+  // ; e vírgula decimal para abrir direto no Excel em português
+  const head = ['Hora', ...csv.cols.map(p => PIDS[p].name + (PIDS[p].unit ? ' (' + PIDS[p].unit + ')' : ''))];
+  const q = v => /[;"\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+  const body = csv.rows.map(r => r.map(v => q(String(v).replace(/^(-?\d+)\.(\d+)$/, '$1,$2'))).join(';'));
+  download('sensores-' + new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-') + '.csv', '﻿' + [head.map(q).join(';'), ...body].join('\n'), 'text/csv');
 };
 
 /* ============ Falhas (DTC) ============ */
@@ -722,6 +931,7 @@ function dtcInfo(code){
 }
 async function readDTC(mode){
   const resp = (parseInt(mode, 16) + 0x40).toString(16).toUpperCase();
+  await ensurePids();
   const r = await cmd(mode, 10000);
   const isCan = /^[6-9A-C]$/i.test(state.proto || '') || hexLines(r).some(h => h.startsWith(resp) && h.length % 4 === 0);
   // Agrupa em mensagens: uma linha começando com 43/47 abre uma nova (uma por ECU)
@@ -747,6 +957,45 @@ $('btnDtcClear').onclick = async () => {
   alert(ERR.test(r) ? 'O carro recusou: ' + r : 'Códigos apagados.');
   $('dtcOut').innerHTML = '<div class="empty">Códigos apagados. Leia de novo para conferir.</div>';
 };
+
+async function ensurePids(){
+  if (!state.pids) state.pids = await supportedPids(s => $('dtcOut').innerHTML = '<div class="empty">' + esc(s) + '</div>');
+  return state.pids;
+}
+async function readMonitors(){
+  await ensurePids();
+  const b = await pid('01');
+  if (!b || b.length < 4){ $('dtcOut').innerHTML = '<div class="empty">O carro não informou os monitores.</div>'; return; }
+  const rows = readiness(b);
+  ficha.monitores = Object.fromEntries(rows);
+  $('dtcOut').innerHTML = '<h3>Monitores de prontidão</h3>' +
+    '<div class="mon"><span>Luz de injeção</span><b class="' + (b[0] & 0x80 ? 'warn">ACESA' : 'ok">apagada') + '</b></div>' +
+    rows.map(([n, s]) => '<div class="mon"><span>' + n + '</span><b class="' + (s === 'pronto' ? 'ok' : 'warn') + '">' + s + '</b></div>').join('') +
+    '<p class="small muted">“Incompleto” é normal logo depois de apagar códigos ou desligar a bateria. A ECU termina os testes depois de alguns dias rodando.</p>';
+}
+const FREEZE = [0x03, 0x04, 0x05, 0x06, 0x07, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x11, 0x42];
+async function readFreeze(){
+  const pids = await ensurePids();
+  const get = async p => {
+    const key = '42' + hex2(p);
+    const h = hexLines(await cmd('02' + hex2(p) + '00', 5000)).find(x => x.startsWith(key));
+    return h ? bytesOf(h.slice(6)) : null;
+  };
+  const d = await get(0x02);
+  const dtc = d && d.length >= 2 ? decodeDTC(d[0], d[1]) : null;
+  if (!dtc){ $('dtcOut').innerHTML = '<div class="empty">Nenhum congelamento salvo (não há falha registrada).</div>'; return; }
+  const rows = [];
+  for (const p of FREEZE){
+    if (pids?.size && !pids.has(p)) continue;
+    const v = fmtPid(p, await get(p).catch(() => null));
+    if (v != null) rows.push([PIDS[p].name, v + (PIDS[p].unit ? ' ' + PIDS[p].unit : '')]);
+  }
+  $('dtcOut').innerHTML = '<h3>Congelamento da falha ' + dtc + '</h3>' +
+    '<p class="small muted">Retrato dos sensores no instante em que a falha foi registrada.</p>' +
+    '<dl class="kv">' + rows.map(([k, v]) => '<dt>' + esc(k) + '</dt><dd>' + esc(v) + '</dd>').join('') + '</dl>';
+}
+$('btnMon').onclick = () => readMonitors().catch(e => log('⚠ ' + e.message));
+$('btnFreeze').onclick = () => readFreeze().catch(e => log('⚠ ' + e.message));
 
 /* ============ Referência: pinagem ============ */
 const PINS = {

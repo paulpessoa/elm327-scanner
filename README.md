@@ -5,8 +5,10 @@ Scanner OBD-II que roda no navegador (Chrome/Edge) e conversa com adaptadores EL
 ## O que faz
 - **Tensão** da bateria (`ATRV`) com gráfico, mín/méd/máx e calibração (`ATCV`)
 - **Ficha**: versão, descrição, teste de clone, protocolo do carro, PIDs suportados, luz de injeção, padrão OBD, combustível, chassi (VIN) e serviços GATT. Pode ser exportada em JSON ou texto.
-- **Ao vivo**: RPM, velocidade, temperaturas, carga, borboleta, MAP, combustível, etanol e tensão da ECU
-- **Falhas**: lê (`03`), mostra pendentes (`07`) e apaga (`04`) os códigos de falha
+- **Sensores**: todos os PIDs do modo 01 (SAE J1979) que a ECU suporta, com referências e gravação em CSV (`;` e vírgula decimal, compatível com o Excel em português)
+- **Falhas**: lê (`03`), mostra pendentes (`07`) e apaga (`04`) os códigos de falha. Também traz os monitores de prontidão e o congelamento da falha (`02`)
+- **Meu C3**: perfil do Citroën C3 2010 1.4 TU3JP, com valores de referência e roteiro de teste
+- Detecção de protocolo com reserva: se o automático falhar, testa um protocolo por vez (comum em clones)
 - **Referência**: pinagem J1962, protocolos, comandos AT e fórmulas
 - **Log** e envio de comando manual
 
