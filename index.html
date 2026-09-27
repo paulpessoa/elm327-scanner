@@ -1,0 +1,790 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1b2430">
+<title>ELM327 Scanner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#1b2430; --panel:#243140; --panel2:#0f151c; --line:#34465a;
+  --text:#e9e6de; --muted:#93a1b1;
+  --lcd:#ffb000; --ok:#4cc38a; --warn:#f0b429; --bad:#ef5350; --blue:#5aa9e6; --gray:#7d8b99;
+  color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:"Chakra Petch",system-ui,sans-serif}
+body{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+main{max-width:820px;margin:0 auto;padding:20px 16px 40px}
+h1{font-size:1.35rem;margin:0 0 4px}
+h2{font-size:1.05rem;margin:24px 0 8px;padding-bottom:4px;border-bottom:1px solid var(--line)}
+h3{font-size:.95rem;margin:18px 0 6px;color:var(--lcd)}
+p{line-height:1.5}
+.sub{color:var(--muted);margin:0 0 12px;font-size:.95rem}
+.muted{color:var(--muted)}
+.small{font-size:.85rem}
+
+.banner{background:#3a2a12;border:1px solid var(--warn);border-radius:10px;padding:10px 12px;margin:12px 0;font-size:.9rem;line-height:1.45}
+.banner:empty{display:none}
+.banner p{margin:4px 0}
+
+.status{display:flex;align-items:center;gap:8px;font-size:.9rem;color:var(--muted)}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--bad);flex:0 0 auto}
+.dot.on{background:var(--ok);box-shadow:0 0 8px var(--ok)}
+.dot.busy{background:var(--warn)}
+
+button{font:inherit;font-weight:600;padding:12px;border-radius:10px;border:1px solid var(--line);
+  background:var(--panel);color:var(--text);cursor:pointer}
+button.primary{background:var(--lcd);color:#1b1300;border-color:var(--lcd)}
+button.danger{border-color:var(--bad);color:var(--bad)}
+button:disabled{opacity:.4;cursor:not-allowed}
+button:focus-visible,input:focus-visible{outline:3px solid var(--lcd);outline-offset:2px}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.row>button{flex:1 1 150px}
+input{font:inherit;padding:11px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--text);width:120px}
+
+.tabs{display:flex;gap:2px;overflow-x:auto;border-bottom:1px solid var(--line);margin:16px 0 12px;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tabs button{flex:0 0 auto;background:none;border:0;border-bottom:3px solid transparent;border-radius:0;padding:10px 12px;color:var(--muted)}
+.tabs button[aria-selected="true"]{color:var(--lcd);border-bottom-color:var(--lcd)}
+section.tab{display:none}
+section.tab.on{display:block}
+
+.gauge{background:var(--panel2);border:2px solid var(--line);border-radius:14px;padding:18px 16px 12px;text-align:center}
+.volt{font-size:clamp(3.5rem,20vw,6rem);font-weight:700;color:var(--lcd);line-height:1;
+  text-shadow:0 0 18px rgba(255,176,0,.35);font-variant-numeric:tabular-nums}
+.volt small{font-size:.35em;margin-left:4px}
+.verdict{margin-top:10px;font-weight:600;min-height:1.4em}
+.verdict.ok{color:var(--ok)} .verdict.warn{color:var(--warn)} .verdict.bad{color:var(--bad)}
+canvas{width:100%;height:90px;margin-top:12px;display:block}
+
+.stats,.tiles{display:grid;gap:8px;margin:12px 0}
+.stats{grid-template-columns:repeat(3,1fr)}
+.tiles{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+.stats div,.tile{background:var(--panel);border-radius:10px;padding:10px;text-align:center}
+.stats b{display:block;font-size:1.15rem;font-variant-numeric:tabular-nums}
+.stats span,.tile span{color:var(--muted);font-size:.8rem}
+.tile b{display:block;font-size:1.7rem;color:var(--lcd);font-variant-numeric:tabular-nums;margin:2px 0}
+.tile.na b{color:var(--gray);font-size:1.1rem}
+
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.88rem;margin:8px 0}
+th{text-align:left;padding:8px 6px;border-bottom:2px solid var(--line);color:var(--lcd);font-weight:600}
+td{padding:7px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+td code,code{font-family:ui-monospace,Menlo,Consolas,monospace;color:var(--lcd)}
+
+dl.kv{display:grid;grid-template-columns:minmax(110px,38%) 1fr;margin:0;border-top:1px solid var(--line)}
+dl.kv dt,dl.kv dd{margin:0;padding:7px 6px;border-bottom:1px solid var(--line);font-size:.9rem}
+dl.kv dt{color:var(--muted)}
+dl.kv dd{word-break:break-word;font-variant-numeric:tabular-nums}
+.empty{color:var(--muted);background:var(--panel);border-radius:10px;padding:14px;text-align:center}
+
+.dtc{display:flex;gap:12px;align-items:baseline;background:var(--panel);border-radius:10px;padding:10px 12px;margin:6px 0}
+.dtc b{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:1.2rem;color:var(--bad)}
+.dtc a{color:var(--blue);margin-left:auto;white-space:nowrap}
+
+.pin-svg{width:100%;max-width:420px;display:block;margin:8px auto}
+.pin-svg text{font-weight:700;font-size:14px;text-anchor:middle;dominant-baseline:central;fill:#101418}
+.pin-svg text.oem{fill:var(--muted)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;justify-content:center;font-size:.82rem;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+
+details{margin-top:14px}
+summary{cursor:pointer;color:var(--muted)}
+pre{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:10px;max-height:280px;
+  overflow:auto;font-size:.78rem;white-space:pre-wrap;word-break:break-all}
+</style>
+</head>
+<body>
+<main>
+  <h1>ELM327 Scanner</h1>
+  <p class="sub">Tensão da bateria, dados ao vivo, códigos de falha e a ficha do adaptador. Tudo no navegador, sem instalar nada.</p>
+
+  <div id="banner" class="banner" role="alert"></div>
+
+  <div class="status" aria-live="polite"><span id="dot" class="dot"></span><span id="statusTxt">Desconectado</span></div>
+
+  <div class="row">
+    <button id="btnBle" class="primary">Conectar via BLE</button>
+    <button id="btnSerial">Conectar via Serial / BT clássico</button>
+    <button id="btnOff" data-conn disabled>Desconectar</button>
+  </div>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-tab="painel" aria-selected="true">Tensão</button>
+    <button role="tab" data-tab="ficha" aria-selected="false">Ficha</button>
+    <button role="tab" data-tab="vivo" aria-selected="false">Ao vivo</button>
+    <button role="tab" data-tab="falhas" aria-selected="false">Falhas</button>
+    <button role="tab" data-tab="ref" aria-selected="false">Referência</button>
+    <button role="tab" data-tab="log" aria-selected="false">Log</button>
+  </nav>
+
+  <!-- TENSÃO -->
+  <section id="painel" class="tab on" role="tabpanel">
+    <div class="gauge" aria-live="polite">
+      <div class="volt"><span id="v">--.-</span><small>V</small></div>
+      <div id="verdict" class="verdict">Conecte o scanner para começar</div>
+      <canvas id="chart" aria-label="Histórico de leituras de tensão"></canvas>
+    </div>
+    <div class="stats">
+      <div><b id="min">--</b><span>mínima</span></div>
+      <div><b id="avg">--</b><span>média</span></div>
+      <div><b id="max">--</b><span>máxima</span></div>
+    </div>
+    <div class="row">
+      <button id="btnRead" data-conn disabled>Ler uma vez</button>
+      <button id="btnLoop" data-conn disabled>Monitorar (1 s)</button>
+    </div>
+
+    <details>
+      <summary>Como interpretar</summary>
+      <div class="tw"><table>
+        <tr><td>&lt; 11,8 V</td><td>Bateria descarregada ou leitura com falha</td></tr>
+        <tr><td>11,8 – 12,3 V</td><td>Motor desligado, bateria fraca</td></tr>
+        <tr><td>12,4 – 12,9 V</td><td>Motor desligado, bateria OK</td></tr>
+        <tr><td>13,0 – 13,4 V</td><td>Ligado com carga baixa (ou bateria recém-carregada)</td></tr>
+        <tr><td>13,5 – 14,8 V</td><td>Motor ligado, alternador carregando OK</td></tr>
+        <tr><td>&gt; 14,8 V</td><td>Sobrecarga: verificar o regulador</td></tr>
+      </table></div>
+      <p class="muted small">O <code>ATRV</code> mede a tensão que chega ao pino 16 do conector, já com a queda da fiação. Clones costumam errar entre 0,2 e 0,5 V.</p>
+    </details>
+
+    <details>
+      <summary>Calibrar com multímetro (ATCV)</summary>
+      <p class="small">Meça a bateria com um multímetro e digite o valor. O adaptador grava o ajuste na memória dele. Muitos clones não aceitam esse comando e respondem <code>?</code>.</p>
+      <div class="row">
+        <input id="calVal" type="number" step="0.01" min="5" max="20" placeholder="12.62" aria-label="Tensão medida no multímetro">
+        <button id="btnCal" data-conn disabled>Calibrar</button>
+        <button id="btnCalReset" data-conn disabled>Voltar ao padrão de fábrica</button>
+      </div>
+    </details>
+  </section>
+
+  <!-- FICHA -->
+  <section id="ficha" class="tab" role="tabpanel">
+    <p class="small muted">Consulta o adaptador e o carro e monta a ficha técnica. Para ter os dados do veículo, a chave precisa estar em ON (ou o motor ligado).</p>
+    <div class="row">
+      <button id="btnFicha" class="primary" data-conn disabled>Gerar ficha completa</button>
+      <button id="btnFichaJson">Baixar ficha (JSON)</button>
+      <button id="btnFichaCopy">Copiar como texto</button>
+    </div>
+    <p id="fichaStep" class="small muted" aria-live="polite"></p>
+    <div id="fichaOut"><div class="empty">Conecte e toque em “Gerar ficha completa”.</div></div>
+  </section>
+
+  <!-- AO VIVO -->
+  <section id="vivo" class="tab" role="tabpanel">
+    <p class="small muted">Lê os sensores em sequência pelo modo 01 do OBD-II. “n/s” = o carro não fornece esse dado.</p>
+    <div class="row"><button id="btnLive" class="primary" data-conn disabled>Iniciar leitura</button></div>
+    <div id="tiles" class="tiles"></div>
+  </section>
+
+  <!-- FALHAS -->
+  <section id="falhas" class="tab" role="tabpanel">
+    <div class="row">
+      <button id="btnDtc" class="primary" data-conn disabled>Ler códigos (03)</button>
+      <button id="btnDtcPend" data-conn disabled>Pendentes (07)</button>
+      <button id="btnDtcClear" class="danger" data-conn disabled>Apagar códigos (04)</button>
+    </div>
+    <div id="dtcOut"><div class="empty">Nenhuma leitura feita ainda.</div></div>
+    <details>
+      <summary>Como ler um código (ex.: P0301)</summary>
+      <div class="tw"><table>
+        <tr><td><code>P</code>/<code>C</code>/<code>B</code>/<code>U</code></td><td>Motor e câmbio / Chassi / Carroceria / Rede de comunicação</td></tr>
+        <tr><td>2º dígito</td><td><code>0</code> genérico (igual em todas as marcas) · <code>1</code> específico da montadora</td></tr>
+        <tr><td>3º dígito (P)</td><td>1–2 ar/combustível · 3 ignição e falha de combustão · 4 emissões · 5 marcha lenta · 6 ECU · 7–9 câmbio</td></tr>
+        <tr><td>Exemplo</td><td><code>P0301</code> = falha de combustão no cilindro 1</td></tr>
+      </table></div>
+    </details>
+  </section>
+
+  <!-- REFERÊNCIA -->
+  <section id="ref" class="tab" role="tabpanel">
+    <h2>Conector OBD-II (SAE J1962, 16 pinos)</h2>
+    <p class="small muted">Tomada do carro vista de frente, normalmente embaixo do volante.</p>
+    <svg class="pin-svg" viewBox="0 0 380 170" role="img" aria-label="Conector OBD-II de 16 pinos visto de frente">
+      <path d="M10 20 H370 L335 150 H45 Z" fill="var(--panel2)" stroke="var(--line)" stroke-width="3" stroke-linejoin="round"/>
+      <g id="pins"></g>
+    </svg>
+    <div class="legend">
+      <span><i style="background:var(--bad)"></i>+12 V</span>
+      <span><i style="background:var(--gray)"></i>Terra</span>
+      <span><i style="background:var(--lcd)"></i>CAN</span>
+      <span><i style="background:var(--ok)"></i>K/L (ISO/KWP)</span>
+      <span><i style="background:var(--blue)"></i>J1850</span>
+      <span><i style="background:var(--panel)"></i>Livre para a montadora</span>
+    </div>
+    <div class="tw"><table id="pinTable"></table></div>
+
+    <h2>BLE ou Bluetooth clássico?</h2>
+    <div class="tw"><table>
+      <tr><th></th><th>BLE (4.0+)</th><th>Clássico (SPP)</th></tr>
+      <tr><td>Como reconhecer</td><td>Não pede PIN. Não aparece nas configurações de Bluetooth do celular, só dentro de apps.</td><td>Pareia pelo sistema com PIN <code>1234</code> ou <code>0000</code></td></tr>
+      <tr><td>Botão aqui</td><td>“Conectar via BLE”</td><td>“Serial / BT clássico” (parear no sistema antes)</td></tr>
+      <tr><td>Chrome Android</td><td>Funciona</td><td>Depende da versão do Chrome</td></tr>
+      <tr><td>Chrome Windows/Mac</td><td>Funciona</td><td>Funciona (Chrome 117+)</td></tr>
+      <tr><td>iPhone</td><td>Só pelo navegador Bluefy</td><td>Não funciona</td></tr>
+    </table></div>
+    <p class="small muted">No Linux, o Web Bluetooth do Chrome pode exigir ativar uma flag em <code>chrome://flags</code>.</p>
+
+    <h2>Protocolos (número usado pelo ELM)</h2>
+    <div class="tw"><table>
+      <tr><th>#</th><th>Protocolo</th><th>Velocidade</th><th>Onde aparece</th></tr>
+      <tr><td>1</td><td>SAE J1850 PWM</td><td>41,6 kbps</td><td>Ford antigos (EUA)</td></tr>
+      <tr><td>2</td><td>SAE J1850 VPW</td><td>10,4 kbps</td><td>GM antigos (EUA)</td></tr>
+      <tr><td>3</td><td>ISO 9141-2</td><td>10,4 kbps</td><td>Europeus e asiáticos antigos</td></tr>
+      <tr><td>4</td><td>ISO 14230-4 KWP (5 baud)</td><td>10,4 kbps</td><td>KWP2000, inicialização lenta</td></tr>
+      <tr><td>5</td><td>ISO 14230-4 KWP (rápido)</td><td>10,4 kbps</td><td>Muitos nacionais anteriores ao CAN</td></tr>
+      <tr><td>6</td><td>ISO 15765-4 CAN 11 bit</td><td>500 kbps</td><td>A maioria dos carros recentes</td></tr>
+      <tr><td>7</td><td>ISO 15765-4 CAN 29 bit</td><td>500 kbps</td><td>Alguns modelos (ex.: grupo VW, Nissan)</td></tr>
+      <tr><td>8</td><td>ISO 15765-4 CAN 11 bit</td><td>250 kbps</td><td>Raro</td></tr>
+      <tr><td>9</td><td>ISO 15765-4 CAN 29 bit</td><td>250 kbps</td><td>Raro</td></tr>
+      <tr><td>A</td><td>SAE J1939 CAN 29 bit</td><td>250 kbps</td><td>Caminhões e diesel pesado</td></tr>
+    </table></div>
+
+    <h2>Comandos AT úteis</h2>
+    <div class="tw"><table>
+      <tr><th>Comando</th><th>O que faz</th></tr>
+      <tr><td><code>ATZ</code></td><td>Reinicia o chip e responde a versão (ex.: <code>ELM327 v1.5</code>)</td></tr>
+      <tr><td><code>ATI</code></td><td>Mostra a versão do firmware</td></tr>
+      <tr><td><code>AT@1</code></td><td>Descrição gravada no chip</td></tr>
+      <tr><td><code>ATRV</code></td><td>Tensão no pino 16</td></tr>
+      <tr><td><code>ATCV 1262</code></td><td>Calibra a tensão para 12,62 V (<code>ATCV 0000</code> volta ao padrão)</td></tr>
+      <tr><td><code>ATE0</code> / <code>ATL0</code> / <code>ATS0</code> / <code>ATH0</code></td><td>Desliga eco, quebras de linha extras, espaços e cabeçalhos da resposta</td></tr>
+      <tr><td><code>ATSP0</code></td><td>Detecta o protocolo automaticamente</td></tr>
+      <tr><td><code>ATDP</code> / <code>ATDPN</code></td><td>Mostra o protocolo em uso (nome / número)</td></tr>
+      <tr><td><code>STI</code></td><td>Só responde em chips STN (OBDLink); ELM e clones respondem <code>?</code></td></tr>
+    </table></div>
+
+    <h2>Modos OBD-II e fórmulas</h2>
+    <div class="tw"><table>
+      <tr><th>Envio</th><th>Significado</th><th>Cálculo (A, B = bytes da resposta)</th></tr>
+      <tr><td><code>0100</code></td><td>PIDs que o carro suporta</td><td>Mapa de 32 bits</td></tr>
+      <tr><td><code>010C</code></td><td>RPM</td><td>(256·A + B) / 4</td></tr>
+      <tr><td><code>010D</code></td><td>Velocidade</td><td>A km/h</td></tr>
+      <tr><td><code>0105</code></td><td>Temperatura do motor</td><td>A − 40 °C</td></tr>
+      <tr><td><code>0104</code></td><td>Carga do motor</td><td>A · 100 / 255 %</td></tr>
+      <tr><td><code>0142</code></td><td>Tensão da ECU</td><td>(256·A + B) / 1000 V</td></tr>
+      <tr><td><code>03</code> / <code>07</code></td><td>Códigos armazenados / pendentes</td><td>2 bytes por código</td></tr>
+      <tr><td><code>04</code></td><td>Apaga os códigos e a luz de injeção</td><td>—</td></tr>
+      <tr><td><code>0902</code></td><td>Número do chassi (VIN)</td><td>17 caracteres ASCII</td></tr>
+    </table></div>
+
+    <h2>Problemas comuns</h2>
+    <div class="tw"><table>
+      <tr><th>Sintoma</th><th>O que fazer</th></tr>
+      <tr><td>O adaptador não aparece no BLE</td><td>Provavelmente é Bluetooth clássico. Pareie no sistema e use “Serial”.</td></tr>
+      <tr><td>Erro “permissions policy”</td><td>A página está dentro de outra (iframe). Abra o link direto no Chrome.</td></tr>
+      <tr><td><code>UNABLE TO CONNECT</code></td><td>Chave desligada, ou o carro usa um protocolo que o clone não suporta</td></tr>
+      <tr><td><code>NO DATA</code></td><td>O carro não tem esse dado, ou a ECU demorou a responder</td></tr>
+      <tr><td>Timeouts frequentes</td><td>Clone com firmware ruim, ou o Bluetooth está longe. Tente reconectar.</td></tr>
+    </table></div>
+  </section>
+
+  <!-- LOG -->
+  <section id="log" class="tab" role="tabpanel">
+    <div class="row">
+      <button id="btnLogDl">Baixar log</button>
+      <button id="btnLogClr">Limpar</button>
+    </div>
+    <pre id="logOut"></pre>
+    <h3>Comando manual</h3>
+    <div class="row">
+      <input id="manCmd" style="flex:1 1 160px" placeholder="ex.: ATDP ou 010C" aria-label="Comando manual" autocapitalize="characters">
+      <button id="btnMan" data-conn disabled>Enviar</button>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const enc = new TextEncoder(), dec = new TextDecoder();
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const hex2 = n => n.toString(16).toUpperCase().padStart(2, '0');
+
+/* ============ Ambiente ============ */
+const env = { ble: false, serial: false };
+function envCheck(){
+  const pp = document.permissionsPolicy || document.featurePolicy;
+  const allowed = f => { try { return pp ? pp.allowsFeature(f) : true; } catch { return true; } };
+  const ios = /iPhone|iPad|iPod/.test(navigator.userAgent);
+  env.ble = !!navigator.bluetooth && allowed('bluetooth');
+  env.serial = !!navigator.serial && allowed('serial');
+  const msg = [];
+  if (!isSecureContext) msg.push('A página precisa abrir em HTTPS (ou localhost) para acessar o Bluetooth.');
+  if (ios && !navigator.bluetooth) msg.push('O Safari do iPhone e do iPad não tem Bluetooth na web. Use o navegador <b>Bluefy</b> (só com adaptador BLE), um Android ou um computador com Chrome.');
+  else if (!navigator.bluetooth && !navigator.serial) msg.push('Este navegador não suporta Bluetooth na web. Use o <b>Chrome</b> ou o <b>Edge</b>.');
+  else if (navigator.bluetooth && !allowed('bluetooth')) msg.push('O Bluetooth está bloqueado porque esta página está embutida em outra (iframe). Abra o link direto no Chrome, por exemplo pelo GitHub Pages.');
+  $('banner').innerHTML = msg.map(m => '<p>' + m + '</p>').join('');
+  setConnected(false);
+}
+
+/* ============ Transporte ============ */
+const BLE_SERVICES = [0xffe0, 0xfff0, 0x18f0, 0xae30, 'e7810a71-73ae-499d-8c15-faa9aef0c3f2'];
+const SPP = '00001101-0000-1000-8000-00805f9b34fb';
+
+async function connectBLE(){
+  const device = await navigator.bluetooth.requestDevice({ acceptAllDevices: true, optionalServices: BLE_SERVICES });
+  log('Dispositivo escolhido: ' + (device.name || '(sem nome)'));
+  const server = await device.gatt.connect();
+  let services;
+  try { services = await server.getPrimaryServices(); }
+  catch { device.gatt.disconnect(); throw new Error('O dispositivo não expõe nenhum serviço serial conhecido (FFE0/FFF0/18F0). Pode ser Bluetooth clássico: tente “Serial”.'); }
+  const gatt = []; let pick = null;
+  for (const s of services){
+    const chars = await s.getCharacteristics().catch(() => []);
+    gatt.push({ servico: s.uuid, caracteristicas: chars.map(c => ({ uuid: c.uuid,
+      props: ['read','write','writeWithoutResponse','notify','indicate'].filter(p => c.properties[p]).join(', ') })) });
+    const n = chars.find(c => c.properties.notify || c.properties.indicate);
+    const w = chars.find(c => c.properties.write || c.properties.writeWithoutResponse);
+    if (!pick && n && w) pick = { n, w, s };
+  }
+  if (!pick){ device.gatt.disconnect(); throw new Error('Não encontrei uma característica de escrita e uma de notificação no mesmo serviço.'); }
+  let cb = () => {};
+  pick.n.addEventListener('characteristicvaluechanged', e => cb(dec.decode(e.target.value)));
+  await pick.n.startNotifications();
+  device.addEventListener('gattserverdisconnected', onLost);
+  return {
+    kind: 'BLE', name: device.name || '(sem nome)',
+    meta: { 'ID no navegador': device.id, 'Serviço': pick.s.uuid, 'Característica de escrita': pick.w.uuid, 'Característica de notificação': pick.n.uuid },
+    gatt,
+    onData: f => cb = f,
+    async send(str){
+      const data = enc.encode(str);
+      for (let i = 0; i < data.length; i += 20){
+        const chunk = data.slice(i, i + 20);
+        if (pick.w.properties.writeWithoutResponse) await pick.w.writeValueWithoutResponse(chunk);
+        else await pick.w.writeValue(chunk);
+      }
+    },
+    close(){ device.removeEventListener('gattserverdisconnected', onLost); if (device.gatt.connected) device.gatt.disconnect(); }
+  };
+}
+
+async function connectSerial(){
+  const port = await navigator.serial.requestPort({ allowedBluetoothServiceClassIds: [SPP] });
+  await port.open({ baudRate: 38400 });
+  const info = port.getInfo();
+  const writer = port.writable.getWriter();
+  const reader = port.readable.getReader();
+  let cb = () => {}, alive = true;
+  (async () => {
+    try { while (alive){ const { value, done } = await reader.read(); if (done) break; cb(dec.decode(value)); } }
+    catch {}
+    if (alive) onLost();
+  })();
+  const meta = {};
+  if (info.bluetoothServiceClassId) meta['Serviço Bluetooth'] = info.bluetoothServiceClassId;
+  if (info.usbVendorId) meta['USB VID:PID'] = info.usbVendorId.toString(16).padStart(4,'0') + ':' + (info.usbProductId||0).toString(16).padStart(4,'0');
+  meta['Baud rate'] = '38400 (ignorado no Bluetooth)';
+  return {
+    kind: 'Serial', name: info.bluetoothServiceClassId ? 'Bluetooth SPP' : 'Porta serial',
+    meta, gatt: null,
+    onData: f => cb = f,
+    send: str => writer.write(enc.encode(str)),
+    async close(){ alive = false; try { await reader.cancel(); } catch {} reader.releaseLock(); writer.releaseLock(); await port.close(); }
+  };
+}
+
+/* ============ Protocolo ELM327 ============ */
+let link = null, buf = '', pending = null, queue = Promise.resolve();
+const state = { proto: null, pids: null };
+
+function onData(chunk){
+  buf += chunk;
+  const i = buf.indexOf('>');
+  if (i < 0 || !pending) return;
+  const lines = buf.slice(0, i).split(/[\r\n]+/).map(s => s.trim()).filter(Boolean);
+  buf = '';
+  const p = pending; pending = null; p(lines);
+}
+
+function rawCmd(c, timeout = 3000){
+  return new Promise((resolve, reject) => {
+    if (!link) return reject(new Error('Não conectado'));
+    const t = setTimeout(() => { pending = null; reject(new Error('Sem resposta para ' + c)); }, timeout);
+    pending = lines => {
+      clearTimeout(t);
+      lines = lines.filter(l => l.replace(/\s/g, '').toUpperCase() !== c.replace(/\s/g, '').toUpperCase());
+      log('← ' + (lines.join(' | ') || '(vazio)'));
+      resolve(lines);
+    };
+    buf = '';
+    log('→ ' + c);
+    link.send(c + '\r').catch(e => { clearTimeout(t); pending = null; reject(e); });
+  });
+}
+// Serializa comandos: o ELM só processa um por vez
+function cmd(c, timeout){ const p = queue.then(() => rawCmd(c, timeout)); queue = p.catch(() => {}); return p; }
+
+const NOISE = /^(SEARCHING|BUS INIT)/i;
+const ERR = /NO DATA|UNABLE TO CONNECT|CAN ERROR|BUS ERROR|BUS BUSY|FB ERROR|DATA ERROR|STOPPED|ERROR|^\?$/i;
+const clean = lines => lines.filter(l => !NOISE.test(l));
+const first = lines => clean(lines).filter(l => l !== 'OK')[0] || '—';
+// Linhas de dados em hex; remove o índice "0:" de respostas CAN com vários quadros
+const hexLines = lines => clean(lines).map(l => l.replace(/\s/g, '').toUpperCase().replace(/^[0-9A-F]:/, ''))
+  .filter(l => /^[0-9A-F]+$/.test(l) && l.length % 2 === 0);
+const bytesOf = h => (h.match(/../g) || []).map(x => parseInt(x, 16));
+
+async function pidAll(p, timeout = 4000){
+  const r = await cmd('01' + p, timeout);
+  return hexLines(r).filter(h => h.startsWith('41' + p)).map(h => bytesOf(h.slice(4)));
+}
+async function pid(p, timeout){ return (await pidAll(p, timeout))[0] || null; }
+
+async function initELM(){
+  try { await cmd('ATZ', 5000); } catch (e) { log('⚠ ATZ sem resposta, seguindo mesmo assim'); }
+  for (const c of ['ATE0', 'ATL0', 'ATS0', 'ATH0', 'ATSP0']) await cmd(c);
+  const id = clean(await cmd('ATI')).find(l => /ELM|STN|OBD/i.test(l)) || '?';
+  ficha.adaptador['Versão (ATI)'] = id;
+  setStatus('on', link.name + ' · ' + id);
+}
+
+/* ============ UI geral ============ */
+const logLines = [];
+function log(s){
+  const line = new Date().toLocaleTimeString() + '  ' + s;
+  logLines.push(line);
+  const el = $('logOut'); el.textContent += line + '\n'; el.scrollTop = el.scrollHeight;
+}
+function setStatus(kind, txt){ $('dot').className = 'dot ' + kind; $('statusTxt').textContent = txt; }
+function setConnected(on){
+  document.querySelectorAll('[data-conn]').forEach(b => b.disabled = !on);
+  $('btnBle').disabled = on || !env.ble;
+  $('btnSerial').disabled = on || !env.serial;
+}
+function download(name, text, type = 'text/plain'){
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], { type }));
+  a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('.tabs button').forEach(x => x.setAttribute('aria-selected', x === b));
+  document.querySelectorAll('section.tab').forEach(s => s.classList.toggle('on', s.id === b.dataset.tab));
+  if (b.dataset.tab === 'painel') draw();
+});
+
+async function connect(fn){
+  try {
+    setStatus('busy', 'Conectando…');
+    link = await fn(); link.onData(onData);
+    ficha.conexao = { 'Transporte': link.kind, 'Nome': link.name, ...link.meta };
+    ficha.gatt = link.gatt;
+    log('Conectado: ' + link.kind + ' · ' + link.name);
+    setConnected(true);
+    await initELM();
+    renderFicha();
+    await doRead();
+  } catch (e) {
+    log('⚠ ' + e.message);
+    if (!link) setStatus('', 'Desconectado');
+    $('verdict').className = 'verdict bad'; $('verdict').textContent = e.message;
+  }
+}
+
+async function disconnect(){
+  stopLoops();
+  const l = link; link = null;
+  try { await l?.close(); } catch {}
+  pending = null; buf = ''; queue = Promise.resolve();
+  setConnected(false); setStatus('', 'Desconectado'); log('Desconectado');
+}
+function onLost(){ if (!link) return; log('⚠ Conexão perdida'); disconnect(); }
+function stopLoops(){
+  voltOn = false; $('btnLoop').textContent = 'Monitorar (1 s)';
+  liveOn = false; $('btnLive').textContent = 'Iniciar leitura';
+}
+
+/* ============ Tensão ============ */
+const samples = []; let voltOn = false;
+
+function classify(v){
+  if (v < 11.8) return ['bad', 'Bateria descarregada ou leitura com falha'];
+  if (v < 12.4) return ['warn', 'Motor desligado · bateria fraca'];
+  if (v < 13.0) return ['ok', 'Motor desligado · bateria OK'];
+  if (v < 13.5) return ['warn', 'Carga baixa ou bateria recém-carregada'];
+  if (v <= 14.8) return ['ok', 'Motor ligado · alternador carregando OK'];
+  return ['bad', 'Sobrecarga · verificar o regulador'];
+}
+async function readVoltage(){
+  const line = clean(await cmd('ATRV')).find(l => /^\d+([.,]\d+)?\s*V?$/i.test(l));
+  const v = line ? parseFloat(line.replace(',', '.')) : NaN;
+  if (isNaN(v)) throw new Error('Resposta inesperada ao ATRV');
+  return v;
+}
+function show(v){
+  samples.push(v); if (samples.length > 120) samples.shift();
+  $('v').textContent = v.toFixed(1);
+  const [cls, txt] = classify(v); $('verdict').className = 'verdict ' + cls; $('verdict').textContent = txt;
+  const min = Math.min(...samples), max = Math.max(...samples), avg = samples.reduce((a, b) => a + b, 0) / samples.length;
+  $('min').textContent = min.toFixed(2); $('max').textContent = max.toFixed(2); $('avg').textContent = avg.toFixed(2);
+  draw();
+}
+function draw(){
+  const c = $('chart'); if (!c.clientWidth) return;
+  const dpr = devicePixelRatio || 1;
+  c.width = c.clientWidth * dpr; c.height = c.clientHeight * dpr;
+  const g = c.getContext('2d'), W = c.width, H = c.height, lo = 10, hi = 16;
+  const y = v => H - (Math.min(hi, Math.max(lo, v)) - lo) / (hi - lo) * H;
+  g.clearRect(0, 0, W, H);
+  g.fillStyle = 'rgba(76,195,138,.12)'; g.fillRect(0, y(14.8), W, y(13.5) - y(14.8));
+  g.fillStyle = 'rgba(76,195,138,.06)'; g.fillRect(0, y(12.9), W, y(12.4) - y(12.9));
+  if (samples.length < 2) return;
+  g.strokeStyle = '#ffb000'; g.lineWidth = 2 * dpr; g.beginPath();
+  samples.forEach((v, i) => { const x = i / (samples.length - 1) * W; i ? g.lineTo(x, y(v)) : g.moveTo(x, y(v)); });
+  g.stroke();
+}
+async function doRead(){ try { show(await readVoltage()); } catch (e) { log('⚠ ' + e.message); } }
+async function voltLoop(){ while (voltOn && link){ await doRead(); await sleep(1000); } }
+
+$('btnRead').onclick = doRead;
+$('btnLoop').onclick = () => {
+  voltOn = !voltOn;
+  $('btnLoop').textContent = voltOn ? 'Parar monitoramento' : 'Monitorar (1 s)';
+  if (voltOn) voltLoop();
+};
+$('btnCal').onclick = async () => {
+  const v = parseFloat($('calVal').value);
+  if (!(v >= 5 && v <= 20)) { alert('Digite a tensão medida, entre 5 e 20 V (ex.: 12.62).'); return; }
+  const r = first(await cmd('ATCV ' + String(Math.round(v * 100)).padStart(4, '0')).catch(e => [e.message]));
+  alert(r === '?' ? 'Este adaptador não aceita ATCV (comum em clones).' : 'Resposta: ' + r);
+  doRead();
+};
+$('btnCalReset').onclick = async () => { await cmd('ATCV 0000').catch(() => {}); doRead(); };
+
+/* ============ Ficha ============ */
+const ficha = { conexao: {}, adaptador: {}, veiculo: {}, gatt: null };
+
+const PID_NAMES = {
+  0x01:'Status do monitor / luz de injeção',0x03:'Status do sistema de combustível',0x04:'Carga do motor',0x05:'Temperatura do motor',
+  0x06:'Ajuste de combustível curto B1',0x07:'Ajuste de combustível longo B1',0x0A:'Pressão de combustível',0x0B:'Pressão do coletor (MAP)',
+  0x0C:'RPM',0x0D:'Velocidade',0x0E:'Avanço de ignição',0x0F:'Temperatura do ar de admissão',0x10:'Fluxo de ar (MAF)',
+  0x11:'Posição da borboleta',0x13:'Sensores de O2 presentes',0x14:'Sonda O2 B1S1',0x15:'Sonda O2 B1S2',0x1C:'Padrão OBD',
+  0x1F:'Tempo desde a partida',0x21:'Distância com luz de injeção acesa',0x2C:'EGR comandada',0x2F:'Nível de combustível',
+  0x30:'Aquecimentos desde a limpeza de DTC',0x31:'Distância desde a limpeza de DTC',0x33:'Pressão barométrica',
+  0x42:'Tensão do módulo de controle',0x43:'Carga absoluta',0x44:'Relação ar/combustível comandada',0x45:'Posição relativa da borboleta',
+  0x46:'Temperatura ambiente',0x49:'Posição do pedal D',0x4C:'Atuador da borboleta comandado',0x51:'Tipo de combustível',
+  0x52:'Percentual de etanol',0x5C:'Temperatura do óleo',0x5E:'Consumo de combustível'
+};
+const OBD_STD = {1:'OBD-II (CARB, EUA)',2:'OBD (EPA, EUA)',3:'OBD e OBD-II',4:'OBD-I',5:'Não é compatível com OBD',
+  6:'EOBD (Europa)',7:'EOBD e OBD-II',8:'EOBD e OBD',9:'EOBD, OBD e OBD-II',10:'JOBD (Japão)',11:'JOBD e OBD-II',12:'JOBD e EOBD',13:'JOBD, EOBD e OBD-II'};
+
+async function supportedPids(){
+  const set = new Set();
+  for (let base = 0; base <= 0xA0; base += 0x20){
+    const all = await pidAll(hex2(base), base ? 4000 : 15000).catch(() => []);
+    if (!all.length) break;
+    for (const b of all) for (let i = 0; i < 32; i++) if (b[i >> 3] & (0x80 >> (i & 7))) set.add(base + i + 1);
+    if (!set.has(base + 0x20)) break;
+  }
+  return set;
+}
+
+function decodeVIN(lines){
+  const b = bytesOf(hexLines(lines).join(''));
+  const out = [];
+  for (let k = 0; k < b.length; k++){
+    // 0x49 ('I') nunca aparece num VIN, então marca o início de "49 02 nn"
+    if (b[k] === 0x49 && b[k + 1] === 0x02){ k += 2; continue; }
+    const ch = String.fromCharCode(b[k]);
+    if (/[A-HJ-NPR-Z0-9]/.test(ch)) out.push(ch);
+  }
+  return out.length >= 17 ? out.slice(-17).join('') : null;
+}
+
+async function gerarFicha(){
+  const btn = $('btnFicha'); btn.disabled = true;
+  const A = ficha.adaptador, V = ficha.veiculo;
+  const step = async (label, fn) => {
+    $('fichaStep').textContent = label + '…';
+    try { await fn(); } catch (e) { log('⚠ ' + label + ': ' + e.message); }
+    renderFicha();
+  };
+  await step('Versão', async () => { A['Versão (ATI)'] = first(await cmd('ATI')); });
+  await step('Descrição', async () => { A['Descrição (AT@1)'] = first(await cmd('AT@1')); });
+  await step('Identificador', async () => { const r = first(await cmd('AT@2')); A['Identificador (AT@2)'] = r === '?' ? 'não suportado' : r; });
+  await step('Chip STN', async () => { const r = first(await cmd('STI')); A['Chip STN (STI)'] = r === '?' ? 'não (ELM327 ou clone)' : r; });
+  await step('Tensão', async () => { A['Tensão no pino 16 (ATRV)'] = first(await cmd('ATRV')); });
+  let pbOk = null;
+  await step('Teste de firmware', async () => { pbOk = first(await cmd('ATPB C0 01')) === 'OK'; });
+  {
+    const ver = (A['Versão (ATI)'] || '').match(/v(\d+\.\d+)/i)?.[1];
+    let verdict = 'Indeterminado';
+    if (ver === '1.5') verdict = 'Provável clone: a Elm Electronics nunca lançou a versão 1.5';
+    else if (pbOk === false && ver && parseFloat(ver) >= 1.4) verdict = 'Provável clone: diz ser v' + ver + ', mas recusa ATPB (comando da v1.4)';
+    else if (pbOk) verdict = 'Aceita os comandos da v1.4 · firmware coerente com a versão';
+    A['Original ou clone?'] = verdict;
+  }
+  await step('Detectando protocolo do carro (pode levar até 15 s)', async () => {
+    state.pids = await supportedPids();
+    V['Protocolo'] = first(await cmd('ATDP')).replace(/^AUTO,\s*/i, '');
+    state.proto = first(await cmd('ATDPN')).replace(/^A/i, '');
+    V['Protocolo (nº ELM)'] = state.proto;
+    V['PIDs suportados'] = state.pids.size ? state.pids.size + ' (lista abaixo)' : 'nenhum: chave em ON?';
+  });
+  if (state.pids?.size){
+    await step('Luz de injeção', async () => {
+      const b = await pid('01'); if (!b) return;
+      V['Luz de injeção (MIL)'] = (b[0] & 0x80) ? 'ACESA' : 'apagada';
+      V['Códigos armazenados'] = b[0] & 0x7F;
+    });
+    if (state.pids.has(0x1C)) await step('Padrão OBD', async () => { const b = await pid('1C'); if (b) V['Padrão OBD'] = OBD_STD[b[0]] || 'código ' + b[0]; });
+    if (state.pids.has(0x51)) await step('Combustível', async () => {
+      const b = await pid('51'); const F = {1:'Gasolina',3:'Etanol',4:'Diesel',8:'Elétrico',9:'Bicombustível (gasolina)',10:'Bicombustível (metanol)',11:'Bicombustível (etanol)',16:'Híbrido gasolina',17:'Híbrido etanol',18:'Híbrido diesel',19:'Híbrido elétrico'};
+      if (b) V['Combustível'] = F[b[0]] || 'código ' + b[0];
+    });
+    await step('Chassi (VIN)', async () => { const r = await cmd('0902', 8000); V['Chassi (VIN)'] = decodeVIN(r) || 'não informado pelo carro'; });
+  }
+  $('fichaStep').textContent = 'Ficha pronta · ' + new Date().toLocaleString();
+  btn.disabled = !link;
+}
+
+function renderFicha(){
+  const sec = (t, o) => o && Object.keys(o).length
+    ? '<h3>' + t + '</h3><dl class="kv">' + Object.entries(o).map(([k, v]) => '<dt>' + esc(k) + '</dt><dd>' + esc(v) + '</dd>').join('') + '</dl>' : '';
+  let html = sec('Conexão', ficha.conexao) + sec('Adaptador', ficha.adaptador) + sec('Veículo', ficha.veiculo);
+  if (state.pids?.size){
+    html += '<h3>PIDs suportados pelo carro</h3><div class="tw"><table>' +
+      [...state.pids].filter(p => p % 0x20).sort((a, b) => a - b)
+        .map(p => '<tr><td><code>01' + hex2(p) + '</code></td><td>' + esc(PID_NAMES[p] || '—') + '</td></tr>').join('') + '</table></div>';
+  }
+  if (ficha.gatt?.length){
+    html += '<h3>Serviços Bluetooth (GATT)</h3><pre>' + esc(ficha.gatt.map(s =>
+      s.servico + '\n' + s.caracteristicas.map(c => '  └ ' + c.uuid + '  [' + c.props + ']').join('\n')).join('\n\n')) + '</pre>';
+  }
+  $('fichaOut').innerHTML = html || '<div class="empty">Conecte e toque em “Gerar ficha completa”.</div>';
+}
+function fichaTexto(){
+  const parts = [];
+  for (const [t, o] of [['CONEXÃO', ficha.conexao], ['ADAPTADOR', ficha.adaptador], ['VEÍCULO', ficha.veiculo]])
+    if (Object.keys(o).length) parts.push(t + '\n' + Object.entries(o).map(([k, v]) => '  ' + k + ': ' + v).join('\n'));
+  if (state.pids?.size) parts.push('PIDS SUPORTADOS\n  ' + [...state.pids].filter(p => p % 0x20).map(p => '01' + hex2(p)).join(' '));
+  return parts.join('\n\n') || '(ficha vazia)';
+}
+$('btnFicha').onclick = gerarFicha;
+$('btnFichaJson').onclick = () => download('ficha-elm327.json',
+  JSON.stringify({ ...ficha, pidsSuportados: state.pids ? [...state.pids].map(p => '01' + hex2(p)) : [], geradaEm: new Date().toISOString() }, null, 2), 'application/json');
+$('btnFichaCopy').onclick = async () => {
+  try { await navigator.clipboard.writeText(fichaTexto()); $('fichaStep').textContent = 'Copiado.'; }
+  catch { download('ficha-elm327.txt', fichaTexto()); }
+};
+
+/* ============ Ao vivo ============ */
+const LIVE = [
+  { p:'0C', name:'RPM', unit:'rpm', n:2, f:b => Math.round((b[0] * 256 + b[1]) / 4) },
+  { p:'0D', name:'Velocidade', unit:'km/h', f:b => b[0] },
+  { p:'05', name:'Temp. motor', unit:'°C', f:b => b[0] - 40 },
+  { p:'04', name:'Carga do motor', unit:'%', f:b => Math.round(b[0] * 100 / 255) },
+  { p:'11', name:'Borboleta', unit:'%', f:b => Math.round(b[0] * 100 / 255) },
+  { p:'0F', name:'Temp. ar admissão', unit:'°C', f:b => b[0] - 40 },
+  { p:'0B', name:'Pressão coletor', unit:'kPa', f:b => b[0] },
+  { p:'2F', name:'Combustível', unit:'%', f:b => Math.round(b[0] * 100 / 255) },
+  { p:'52', name:'Etanol no tanque', unit:'%', f:b => Math.round(b[0] * 100 / 255) },
+  { p:'42', name:'Tensão da ECU', unit:'V', n:2, f:b => ((b[0] * 256 + b[1]) / 1000).toFixed(2) },
+];
+$('tiles').innerHTML = LIVE.map(d => '<div class="tile" id="t' + d.p + '"><span>' + d.name + '</span><b>--</b><span>' + d.unit + '</span></div>').join('');
+function setTile(d, val, na){ const t = $('t' + d.p); t.classList.toggle('na', !!na); t.querySelector('b').textContent = val; }
+
+let liveOn = false;
+async function liveLoop(){
+  if (!state.pids) state.pids = await supportedPids().catch(() => null);
+  while (liveOn && link){
+    for (const d of LIVE){
+      if (!liveOn || !link) break;
+      if (state.pids?.size && !state.pids.has(parseInt(d.p, 16))){ setTile(d, 'n/s', true); continue; }
+      try { const b = await pid(d.p); b && b.length >= (d.n || 1) ? setTile(d, d.f(b)) : setTile(d, 'n/s', true); }
+      catch { setTile(d, 'erro', true); }
+    }
+    await sleep(200);
+  }
+}
+$('btnLive').onclick = () => {
+  liveOn = !liveOn;
+  $('btnLive').textContent = liveOn ? 'Parar leitura' : 'Iniciar leitura';
+  if (liveOn) liveLoop();
+};
+
+/* ============ Falhas (DTC) ============ */
+function decodeDTC(hi, lo){
+  const n = (hi << 8) | lo; if (!n) return null;
+  return 'PCBU'[n >> 14] + ((n >> 12) & 3) + (n & 0xFFF).toString(16).toUpperCase().padStart(3, '0');
+}
+function dtcInfo(code){
+  const sys = { P:'Motor e câmbio', C:'Chassi', B:'Carroceria', U:'Rede de comunicação' }[code[0]];
+  const kind = code[1] === '0' ? 'genérico' : code[1] === '1' ? 'da montadora' : 'misto';
+  const sub = code[0] === 'P' && '01'.includes(code[1]) ? ({1:'ar/combustível',2:'ar/combustível (injetores)',3:'ignição / falha de combustão',4:'emissões',5:'velocidade / marcha lenta',6:'ECU / saídas',7:'câmbio',8:'câmbio',9:'câmbio'})[code[2]] : '';
+  return [sys, kind, sub].filter(Boolean).join(' · ');
+}
+async function readDTC(mode){
+  const resp = (parseInt(mode, 16) + 0x40).toString(16).toUpperCase();
+  const r = await cmd(mode, 10000);
+  const isCan = /^[6-9A-C]$/i.test(state.proto || '') || hexLines(r).some(h => h.startsWith(resp) && h.length % 4 === 0);
+  // Agrupa em mensagens: uma linha começando com 43/47 abre uma nova (uma por ECU)
+  const msgs = [];
+  for (const h of hexLines(r)){ if (h.startsWith(resp)) msgs.push(h); else if (msgs.length) msgs[msgs.length - 1] += h; }
+  const codes = new Set();
+  for (const m of msgs){
+    const b = bytesOf(m);
+    const start = isCan ? 2 : 1, count = isCan ? b[1] : Infinity;
+    for (let i = start, k = 0; i + 1 < b.length && k < count; i += 2, k++){ const c = decodeDTC(b[i], b[i + 1]); if (c) codes.add(c); }
+  }
+  const title = mode === '03' ? 'Códigos armazenados' : 'Códigos pendentes';
+  $('dtcOut').innerHTML = '<h3>' + title + '</h3>' + (codes.size
+    ? [...codes].map(c => '<div class="dtc"><b>' + c + '</b><span class="small">' + esc(dtcInfo(c)) + '</span>' +
+        '<a href="https://www.google.com/search?q=' + c + '+OBD2" target="_blank" rel="noopener">pesquisar</a></div>').join('')
+    : '<div class="empty">Nenhum código ' + (mode === '03' ? 'armazenado' : 'pendente') + '. 👍</div>');
+}
+$('btnDtc').onclick = () => readDTC('03').catch(e => log('⚠ ' + e.message));
+$('btnDtcPend').onclick = () => readDTC('07').catch(e => log('⚠ ' + e.message));
+$('btnDtcClear').onclick = async () => {
+  if (!confirm('Apagar os códigos de falha?\n\nIsso apaga a luz de injeção e zera os monitores de prontidão. O defeito continua lá: se não for resolvido, a luz volta a acender.\n\nFaça com a chave em ON e o motor DESLIGADO.')) return;
+  const r = first(await cmd('04', 10000).catch(e => [e.message]));
+  alert(ERR.test(r) ? 'O carro recusou: ' + r : 'Códigos apagados.');
+  $('dtcOut').innerHTML = '<div class="empty">Códigos apagados. Leia de novo para conferir.</div>';
+};
+
+/* ============ Referência: pinagem ============ */
+const PINS = {
+  1:['oem','Livre para a montadora'], 2:['j1850','SAE J1850 Bus +'], 3:['oem','Livre para a montadora'],
+  4:['gnd','Terra do chassi'], 5:['gnd','Terra de sinal'], 6:['can','CAN High (ISO 15765-4)'],
+  7:['kl','Linha K (ISO 9141-2 / KWP2000)'], 8:['oem','Livre para a montadora'], 9:['oem','Livre para a montadora'],
+  10:['j1850','SAE J1850 Bus −'], 11:['oem','Livre para a montadora'], 12:['oem','Livre para a montadora'],
+  13:['oem','Livre para a montadora'], 14:['can','CAN Low (ISO 15765-4)'], 15:['kl','Linha L (ISO 9141-2 / KWP2000)'],
+  16:['pwr','+12 V da bateria (sempre ligado) · é o que o ATRV mede']
+};
+const PIN_COLOR = { pwr:'var(--bad)', gnd:'var(--gray)', can:'var(--lcd)', kl:'var(--ok)', j1850:'var(--blue)', oem:'var(--panel)' };
+$('pins').innerHTML = Object.entries(PINS).map(([n, [t, d]]) => {
+  n = +n; const x = 50 + ((n - 1) % 8) * 40, y = n <= 8 ? 55 : 112;
+  return '<g><title>Pino ' + n + ': ' + d + '</title><circle cx="' + x + '" cy="' + y + '" r="15" fill="' + PIN_COLOR[t] +
+    '" stroke="var(--line)" stroke-width="2"/><text x="' + x + '" y="' + y + '"' + (t === 'oem' ? ' class="oem"' : '') + '>' + n + '</text></g>';
+}).join('');
+$('pinTable').innerHTML = '<tr><th>Pino</th><th>Função</th></tr>' + Object.entries(PINS).filter(([, [t]]) => t !== 'oem')
+  .map(([n, [t, d]]) => '<tr><td><b style="color:' + PIN_COLOR[t] + '">' + n + '</b></td><td>' + d + '</td></tr>').join('') +
+  '<tr><td class="muted">1, 3, 8, 9, 11–13</td><td class="muted">Livres para a montadora (diagnóstico próprio da marca)</td></tr>';
+
+/* ============ Log / manual ============ */
+$('btnLogDl').onclick = () => download('elm327-log-' + Date.now() + '.txt', logLines.join('\n'));
+$('btnLogClr').onclick = () => { logLines.length = 0; $('logOut').textContent = ''; };
+async function sendManual(){
+  const c = $('manCmd').value.trim().toUpperCase(); if (!c) return;
+  await cmd(c, 10000).catch(e => log('⚠ ' + e.message));
+  $('manCmd').select();
+}
+$('btnMan').onclick = sendManual;
+$('manCmd').addEventListener('keydown', e => { if (e.key === 'Enter' && link) sendManual(); });
+
+/* ============ Início ============ */
+$('btnBle').onclick = () => connect(connectBLE);
+$('btnSerial').onclick = () => connect(connectSerial);
+$('btnOff').onclick = disconnect;
+addEventListener('resize', draw);
+envCheck();
+draw();
+</script>
+</body>
+</html>
