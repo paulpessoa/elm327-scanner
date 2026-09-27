@@ -99,6 +99,10 @@ dl.kv dd{word-break:break-word;font-variant-numeric:tabular-nums}
 
 details{margin-top:14px}
 summary{cursor:pointer;color:var(--muted)}
+.xout{font-size:.85rem;color:var(--muted);margin:-2px 0 10px;line-height:1.6}
+.xout:empty{display:none}
+.xout a{color:var(--blue);font-weight:600}
+button.ai{border-color:var(--blue);color:var(--blue)}
 pre{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:10px;max-height:280px;
   overflow:auto;font-size:.78rem;white-space:pre-wrap;word-break:break-all}
 </style>
@@ -144,6 +148,7 @@ pre{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padd
       <button id="btnRead" data-conn disabled>Ler uma vez</button>
       <button id="btnLoop" data-conn disabled>Monitorar (1 s)</button>
     </div>
+    <div class="row" data-export="tensao"></div>
 
     <details>
       <summary>Como interpretar</summary>
@@ -174,9 +179,8 @@ pre{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padd
     <p class="small muted">Consulta o adaptador e o carro e monta a ficha técnica. Para ter os dados do veículo, a chave precisa estar em ON (ou o motor ligado).</p>
     <div class="row">
       <button id="btnFicha" class="primary" data-conn disabled>Gerar ficha completa</button>
-      <button id="btnFichaJson">Baixar ficha (JSON)</button>
-      <button id="btnFichaCopy">Copiar como texto</button>
     </div>
+    <div class="row" data-export="ficha"></div>
     <p id="fichaStep" class="small muted" aria-live="polite"></p>
     <div id="fichaOut"><div class="empty">Conecte e toque em “Gerar ficha completa”.</div></div>
   </section>
@@ -195,6 +199,7 @@ pre{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padd
       <button id="btnRec" data-conn disabled>Gravar CSV</button>
       <button id="btnCsv" disabled>Baixar CSV (0 linhas)</button>
     </div>
+    <div class="row" data-export="sensores"></div>
     <p id="liveInfo" class="small muted" aria-live="polite"></p>
     <div id="tiles" class="tiles"></div>
   </section>
@@ -210,6 +215,7 @@ pre{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padd
       <button id="btnMon" data-conn disabled>Monitores de prontidão</button>
       <button id="btnFreeze" data-conn disabled>Congelamento da falha (02)</button>
     </div>
+    <div class="row" data-export="falhas"></div>
     <div id="dtcOut"><div class="empty">Nenhuma leitura feita ainda.</div></div>
     <details>
       <summary>Como ler um código (ex.: P0301)</summary>
@@ -230,6 +236,14 @@ pre{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padd
       <dt>Tomada OBD</dt><dd>Embaixo do painel, do lado do motorista, perto da caixa de fusíveis. Às vezes fica atrás de uma tampinha.</dd>
       <dt>Protocolo</dt><dd>Detectado sozinho pelo app. Se falhar, ele tenta um por um (CAN, KWP e ISO).</dd>
     </dl>
+
+    <h3>Relatório completo</h3>
+    <p class="small">Junta ficha, falhas, sensores e tensão num JSON só, pronto para mandar para uma IA ou para um mecânico.</p>
+    <div class="row">
+      <label for="carName" class="small muted" style="align-self:center">Carro:</label>
+      <input id="carName" style="flex:1 1 220px" value="Citroën C3 2010 1.4 8V TU3JP flex" aria-label="Carro enviado junto com os dados">
+    </div>
+    <div class="row" data-export="tudo"></div>
 
     <h3>O que o ELM327 lê neste carro</h3>
     <p class="small">Só a central do <b>motor</b>, pelo OBD-II genérico: sensores, códigos de falha do motor, monitores, congelamento de falha e dados da ECU.</p>
@@ -260,7 +274,7 @@ pre{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padd
       <li><b>Ligue o motor</b> e espere a temperatura passar de 85 °C (aba <b>Sensores</b>, modo Principais).</li>
       <li>Troque para <b>Todos os suportados</b>, toque em <b>Gravar CSV</b> e deixe 2 min em marcha lenta.</li>
       <li>Segure em ~2.500 rpm por 30 s e solte. Pare a gravação e toque em <b>Baixar CSV</b>.</li>
-      <li>Baixe também a ficha (JSON) e o <b>Log</b>. Mande os 3 arquivos aqui para analisarmos.</li>
+      <li>Volte aqui e toque em <b>Perguntar à IA</b> no Relatório completo (ou <b>Baixar JSON</b> para guardar).</li>
     </ol>
     <p class="small muted">Não use o app com o carro em movimento. Se precisar testar rodando, deixe outra pessoa dirigir.</p>
   </section>
@@ -351,9 +365,9 @@ pre{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padd
   <!-- LOG -->
   <section id="log" class="tab" role="tabpanel">
     <div class="row">
-      <button id="btnLogDl">Baixar log</button>
-      <button id="btnLogClr">Limpar</button>
+      <button id="btnLogClr">Limpar log</button>
     </div>
+    <div class="row" data-export="log"></div>
     <pre id="logOut"></pre>
     <h3>Comando manual</h3>
     <div class="row">
@@ -567,7 +581,7 @@ function stopLoops(){
 }
 
 /* ============ Tensão ============ */
-const samples = []; let voltOn = false;
+const samples = [], sampleTimes = []; let voltOn = false;
 
 function classify(v){
   if (v < 11.8) return ['bad', 'Bateria descarregada ou leitura com falha'];
@@ -584,7 +598,8 @@ async function readVoltage(){
   return v;
 }
 function show(v){
-  samples.push(v); if (samples.length > 120) samples.shift();
+  samples.push(v); sampleTimes.push(new Date().toLocaleTimeString());
+  if (samples.length > 120){ samples.shift(); sampleTimes.shift(); }
   $('v').textContent = v.toFixed(1);
   const [cls, txt] = classify(v); $('verdict').className = 'verdict ' + cls; $('verdict').textContent = txt;
   const min = Math.min(...samples), max = Math.max(...samples), avg = samples.reduce((a, b) => a + b, 0) / samples.length;
@@ -627,7 +642,10 @@ $('btnCalReset').onclick = async () => { await cmd('ATCV 0000').catch(() => {});
 const ficha = { conexao: {}, adaptador: {}, veiculo: {}, monitores: {}, gatt: null };
 
 const OBD_STD = {1:'OBD-II (CARB, EUA)',2:'OBD (EPA, EUA)',3:'OBD e OBD-II',4:'OBD-I',5:'Não é compatível com OBD',
-  6:'EOBD (Europa)',7:'EOBD e OBD-II',8:'EOBD e OBD',9:'EOBD, OBD e OBD-II',10:'JOBD (Japão)',11:'JOBD e OBD-II',12:'JOBD e EOBD',13:'JOBD, EOBD e OBD-II'};
+  6:'EOBD (Europa)',7:'EOBD e OBD-II',8:'EOBD e OBD',9:'EOBD, OBD e OBD-II',10:'JOBD (Japão)',11:'JOBD e OBD-II',12:'JOBD e EOBD',13:'JOBD, EOBD e OBD-II',
+  17:'EMD (diagnóstico do fabricante)',21:'WWH-OBD',28:'OBDBr-1 (Brasil, fase 1)',29:'OBDBr-2 (Brasil, fase 2)',30:'KOBD (Coreia)',31:'IOBD I (Índia)',32:'IOBD II (Índia)'};
+const PROTO = {1:'SAE J1850 PWM',2:'SAE J1850 VPW',3:'ISO 9141-2',4:'ISO 14230-4 KWP (5 baud)',5:'ISO 14230-4 KWP (rápido)',
+  6:'ISO 15765-4 CAN 11 bit 500k',7:'ISO 15765-4 CAN 29 bit 500k',8:'ISO 15765-4 CAN 11 bit 250k',9:'ISO 15765-4 CAN 29 bit 250k',A:'SAE J1939'};
 const FUEL_SYS = {1:'Malha aberta (motor frio)',2:'Malha fechada (sonda ativa)',4:'Malha aberta (carga ou desaceleração)',8:'Malha aberta (falha)',16:'Malha fechada com falha na sonda'};
 const FUEL_TYPE = {1:'Gasolina',2:'Metanol',3:'Etanol',4:'Diesel',5:'GLP',6:'GNV',8:'Elétrico',9:'Bicombustível (gasolina)',11:'Bicombustível (etanol)',16:'Híbrido gasolina',17:'Híbrido etanol',18:'Híbrido diesel',19:'Híbrido elétrico'};
 
@@ -802,8 +820,9 @@ async function gerarFicha(){
   }
   await step('Detectando protocolo do carro (pode levar até 15 s)', async () => {
     state.pids = await supportedPids(s => $('fichaStep').textContent = s);
-    V['Protocolo'] = first(await cmd('ATDP')).replace(/^AUTO,\s*/i, '');
     state.proto = first(await cmd('ATDPN')).replace(/^A/i, '');
+    const dp = first(await cmd('ATDP')).replace(/^AUTO,?\s*/i, '');
+    V['Protocolo'] = dp && dp !== '—' ? dp : PROTO[state.proto] || '?';
     V['Protocolo (nº ELM)'] = state.proto;
     V['PIDs suportados'] = state.pids.size ? state.pids.size + ' (lista abaixo)' : 'nenhum: chave em ON?';
   });
@@ -812,6 +831,7 @@ async function gerarFicha(){
       const b = await pid('01'); if (!b) return;
       V['Luz de injeção (MIL)'] = (b[0] & 0x80) ? 'ACESA' : 'apagada';
       V['Códigos armazenados'] = b[0] & 0x7F;
+      diag.luzInjecao = V['Luz de injeção (MIL)']; diag.qtdCodigos = b[0] & 0x7F;
       if (b.length >= 4) ficha.monitores = Object.fromEntries(readiness(b));
     });
     for (const [p, label] of [[0x1C, 'Padrão OBD'], [0x51, 'Combustível'], [0x03, 'Sistema de combustível'], [0x13, 'Sondas O2 instaladas']])
@@ -839,20 +859,7 @@ function renderFicha(){
   }
   $('fichaOut').innerHTML = html || '<div class="empty">Conecte e toque em “Gerar ficha completa”.</div>';
 }
-function fichaTexto(){
-  const parts = [];
-  for (const [t, o] of [['CONEXÃO', ficha.conexao], ['ADAPTADOR', ficha.adaptador], ['VEÍCULO', ficha.veiculo], ['MONITORES', ficha.monitores]])
-    if (Object.keys(o).length) parts.push(t + '\n' + Object.entries(o).map(([k, v]) => '  ' + k + ': ' + v).join('\n'));
-  if (state.pids?.size) parts.push('PIDS SUPORTADOS\n  ' + [...state.pids].filter(p => p % 0x20).map(p => '01' + hex2(p)).join(' '));
-  return parts.join('\n\n') || '(ficha vazia)';
-}
 $('btnFicha').onclick = gerarFicha;
-$('btnFichaJson').onclick = () => download('ficha-elm327.json',
-  JSON.stringify({ ...ficha, pidsSuportados: state.pids ? [...state.pids].map(p => '01' + hex2(p)) : [], geradaEm: new Date().toISOString() }, null, 2), 'application/json');
-$('btnFichaCopy').onclick = async () => {
-  try { await navigator.clipboard.writeText(fichaTexto()); $('fichaStep').textContent = 'Copiado.'; }
-  catch { download('ficha-elm327.txt', fichaTexto()); }
-};
 
 /* ============ Ao vivo ============ */
 const MAIN = [0x0C, 0x0D, 0x05, 0x04, 0x0B, 0x0E, 0x11, 0x0F, 0x06, 0x07, 0x14, 0x15, 0x03, 0x42, 0x2F, 0x52];
@@ -873,7 +880,8 @@ function setTile(p, val, na){
   t.querySelector('b').textContent = val;
 }
 
-let liveOn = false, rec = false;
+let liveOn = false, rec = false, lastAt = null, cycleSum = 0, cycleN = 0;
+const lastVals = {};
 const csv = { cols: [], rows: [] };
 function csvLabel(){ $('btnCsv').textContent = 'Baixar CSV (' + csv.rows.length + ' linhas)'; $('btnCsv').disabled = !csv.rows.length; }
 
@@ -892,8 +900,10 @@ async function liveLoop(){
       let v = null;
       try { v = fmtPid(p, await pid(hex2(p))); setTile(p, v ?? 'n/s', v == null); }
       catch { setTile(p, 'erro', true); }
+      lastVals[p] = v;
       row.push(v ?? '');
     }
+    lastAt = row[0]; cycleSum += (performance.now() - t0) / 1000; cycleN++;
     if (rec && row.length === list.length + 1){ csv.rows.push(row); csvLabel(); }
     info(list.length + ' sensores · ciclo de ' + ((performance.now() - t0) / 1000).toFixed(1) + ' s' + (rec ? ' · gravando' : ''));
     await sleep(100);
@@ -919,6 +929,7 @@ $('btnCsv').onclick = () => {
 };
 
 /* ============ Falhas (DTC) ============ */
+const diag = { luzInjecao: null, qtdCodigos: null, armazenados: null, pendentes: null, monitores: null, congelamento: null };
 function decodeDTC(hi, lo){
   const n = (hi << 8) | lo; if (!n) return null;
   return 'PCBU'[n >> 14] + ((n >> 12) & 3) + (n & 0xFFF).toString(16).toUpperCase().padStart(3, '0');
@@ -943,6 +954,7 @@ async function readDTC(mode){
     const start = isCan ? 2 : 1, count = isCan ? b[1] : Infinity;
     for (let i = start, k = 0; i + 1 < b.length && k < count; i += 2, k++){ const c = decodeDTC(b[i], b[i + 1]); if (c) codes.add(c); }
   }
+  diag[mode === '03' ? 'armazenados' : 'pendentes'] = [...codes].map(c => ({ codigo: c, tipo: dtcInfo(c) }));
   const title = mode === '03' ? 'Códigos armazenados' : 'Códigos pendentes';
   $('dtcOut').innerHTML = '<h3>' + title + '</h3>' + (codes.size
     ? [...codes].map(c => '<div class="dtc"><b>' + c + '</b><span class="small">' + esc(dtcInfo(c)) + '</span>' +
@@ -967,7 +979,8 @@ async function readMonitors(){
   const b = await pid('01');
   if (!b || b.length < 4){ $('dtcOut').innerHTML = '<div class="empty">O carro não informou os monitores.</div>'; return; }
   const rows = readiness(b);
-  ficha.monitores = Object.fromEntries(rows);
+  ficha.monitores = diag.monitores = Object.fromEntries(rows);
+  diag.luzInjecao = b[0] & 0x80 ? 'ACESA' : 'apagada'; diag.qtdCodigos = b[0] & 0x7F;
   $('dtcOut').innerHTML = '<h3>Monitores de prontidão</h3>' +
     '<div class="mon"><span>Luz de injeção</span><b class="' + (b[0] & 0x80 ? 'warn">ACESA' : 'ok">apagada') + '</b></div>' +
     rows.map(([n, s]) => '<div class="mon"><span>' + n + '</span><b class="' + (s === 'pronto' ? 'ok' : 'warn') + '">' + s + '</b></div>').join('') +
@@ -983,6 +996,7 @@ async function readFreeze(){
   };
   const d = await get(0x02);
   const dtc = d && d.length >= 2 ? decodeDTC(d[0], d[1]) : null;
+  diag.congelamento = dtc ? { codigo: dtc } : 'nenhum';
   if (!dtc){ $('dtcOut').innerHTML = '<div class="empty">Nenhum congelamento salvo (não há falha registrada).</div>'; return; }
   const rows = [];
   for (const p of FREEZE){
@@ -990,6 +1004,7 @@ async function readFreeze(){
     const v = fmtPid(p, await get(p).catch(() => null));
     if (v != null) rows.push([PIDS[p].name, v + (PIDS[p].unit ? ' ' + PIDS[p].unit : '')]);
   }
+  diag.congelamento.sensores = Object.fromEntries(rows);
   $('dtcOut').innerHTML = '<h3>Congelamento da falha ' + dtc + '</h3>' +
     '<p class="small muted">Retrato dos sensores no instante em que a falha foi registrada.</p>' +
     '<dl class="kv">' + rows.map(([k, v]) => '<dt>' + esc(k) + '</dt><dd>' + esc(v) + '</dd>').join('') + '</dl>';
@@ -1017,7 +1032,6 @@ $('pinTable').innerHTML = '<tr><th>Pino</th><th>Função</th></tr>' + Object.ent
   '<tr><td class="muted">1, 3, 8, 9, 11–13</td><td class="muted">Livres para a montadora (diagnóstico próprio da marca)</td></tr>';
 
 /* ============ Log / manual ============ */
-$('btnLogDl').onclick = () => download('elm327-log-' + Date.now() + '.txt', logLines.join('\n'));
 $('btnLogClr').onclick = () => { logLines.length = 0; $('logOut').textContent = ''; };
 async function sendManual(){
   const c = $('manCmd').value.trim().toUpperCase(); if (!c) return;
@@ -1026,6 +1040,99 @@ async function sendManual(){
 }
 $('btnMan').onclick = sendManual;
 $('manCmd').addEventListener('keydown', e => { if (e.key === 'Enter' && link) sendManual(); });
+
+/* ============ Exportar JSON / Perguntar à IA ============ */
+const num = v => typeof v === 'string' && /^-?\d+(\.\d+)?$/.test(v) ? Number(v) : v;
+const label = p => PIDS[p].name + (PIDS[p].unit ? ' (' + PIDS[p].unit + ')' : '');
+function stats(arr){
+  const n = arr.filter(x => typeof x === 'number');
+  if (!n.length) return null;
+  return { min: Math.min(...n), media: +(n.reduce((a, b) => a + b, 0) / n.length).toFixed(3), max: Math.max(...n), amostras: n.length };
+}
+const fichaData = () => ({
+  ...ficha,
+  pidsSuportados: state.pids ? [...state.pids].filter(p => p % 0x20).sort((a, b) => a - b).map(p => ({ pid: '01' + hex2(p), nome: PIDS[p]?.name || null })) : null
+});
+function sensoresData(){
+  const rows = csv.rows.map(r => r.map(v => v === '' ? null : num(v)));
+  const last = Object.entries(lastVals);
+  return {
+    cicloMedio_s: cycleN ? +(cycleSum / cycleN).toFixed(1) : null,
+    ultimaLeitura: last.length ? { hora: lastAt, valores: Object.fromEntries(last.map(([p, v]) => [label(p), v == null ? 'não suportado' : num(v)])) } : null,
+    gravacao: rows.length ? {
+      referencias: Object.fromEntries(csv.cols.filter(p => PIDS[p].ref).map(p => [label(p), PIDS[p].ref])),
+      colunas: ['Hora', ...csv.cols.map(label)],
+      resumo: Object.fromEntries(csv.cols.map((p, i) => [label(p), stats(rows.map(r => r[i + 1]))]).filter(([, s]) => s)),
+      linhas: rows
+    } : null
+  };
+}
+const tensaoData = () => ({
+  unidade: 'V', resumo: stats(samples),
+  colunas: ['Hora', 'Tensão (V)'], linhas: samples.map((v, i) => [sampleTimes[i], v])
+});
+const EXPORTS = {
+  tensao: ['Tensão da bateria (ATRV)', tensaoData],
+  ficha: ['Ficha do adaptador e do veículo', fichaData],
+  sensores: ['Sensores ao vivo (OBD-II modo 01)', sensoresData],
+  falhas: ['Códigos de falha, monitores e congelamento', () => diag],
+  log: ['Log de comunicação com o ELM327', () => ({ linhas: logLines })],
+  tudo: ['Relatório completo', () => ({ ficha: fichaData(), falhas: diag, sensores: sensoresData(), tensao: tensaoData() })]
+};
+function pack(k){
+  const [titulo, fn] = EXPORTS[k];
+  return {
+    app: 'ELM327 Scanner', conteudo: titulo, geradoEm: new Date().toISOString(),
+    veiculo: $('carName').value.trim() || null,
+    adaptador: ficha.adaptador['Versão (ATI)'] || null,
+    protocolo: ficha.veiculo['Protocolo'] || PROTO[state.proto] || null,
+    dados: fn()
+  };
+}
+function aiPrompt(k){
+  const p = pack(k);
+  return 'Você é um mecânico especialista em injeção eletrônica e diagnóstico OBD-II. ' +
+    'Analise os dados abaixo, lidos com um adaptador ELM327 pelo OBD-II genérico' + (p.veiculo ? ' de um ' + p.veiculo : '') + '.\n\n' +
+    'Responda em português, de forma objetiva:\n' +
+    '1. O que está normal\n2. O que está fora do esperado, citando os valores\n' +
+    '3. Causas prováveis, da mais para a menos provável\n4. Que teste fazer para confirmar antes de trocar peças\n\n' +
+    'Cuidados: o OBD genérico só enxerga a central do motor. Os sensores são lidos um por vez (veja cicloMedio_s), ' +
+    'então não tire conclusões sobre a velocidade de resposta de um sensor mais rápido que esse intervalo. ' +
+    'Se faltar algum dado para concluir, diga qual leitura devo fazer.\n\n' +
+    'Dados (JSON):\n' + JSON.stringify(p);
+}
+async function copyText(t){ try { await navigator.clipboard.writeText(t); return true; } catch { return false; } }
+const AIS = [['ChatGPT', 'https://chatgpt.com/?q=', true], ['Claude', 'https://claude.ai/new?q=', true], ['Gemini', 'https://gemini.google.com/app', false]];
+async function exportAction(k, action, out){
+  const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+  if (action === 'dl'){ download('elm327-' + k + '-' + stamp + '.json', JSON.stringify(pack(k), null, 2), 'application/json'); return; }
+  if (action === 'copy'){
+    out.textContent = await copyText(JSON.stringify(pack(k))) ? 'JSON copiado.' : 'Não consegui copiar. Use “Baixar JSON”.';
+    return;
+  }
+  const text = aiPrompt(k);
+  // No celular, a folha de compartilhar abre direto o app do ChatGPT, Gemini ou Claude
+  if (navigator.share && matchMedia('(pointer: coarse)').matches){
+    try { await navigator.share({ text }); out.textContent = ''; return; }
+    catch (e){ if (e.name === 'AbortError') return; }
+  }
+  const copied = await copyText(text);
+  const fits = encodeURIComponent(text).length <= 8000;
+  if (!copied && !fits) download('pergunta-ia-' + stamp + '.txt', text);
+  out.innerHTML = (copied ? 'Pergunta e dados copiados. ' : !fits ? 'Baixei a pergunta em .txt. ' : '') +
+    'Abra uma IA' + (fits ? '' : ' e cole o texto') + ': ' +
+    AIS.map(([n, u, q]) => '<a target="_blank" rel="noopener" href="' + esc(u + (q && fits ? encodeURIComponent(text) : '')) + '">' + n + '</a>' +
+      (fits && !q ? ' (cole o texto)' : '')).join(' · ');
+}
+document.querySelectorAll('[data-export]').forEach(el => {
+  const k = el.dataset.export, out = document.createElement('p');
+  out.className = 'xout'; out.setAttribute('aria-live', 'polite');
+  el.after(out);
+  el.innerHTML = '<button data-a="copy">Copiar JSON</button><button data-a="dl">Baixar JSON</button><button data-a="ai" class="ai">Perguntar à IA</button>';
+  el.onclick = e => { const a = e.target.closest('button')?.dataset.a; if (a) exportAction(k, a, out); };
+});
+try { const saved = localStorage.getItem('carName'); if (saved) $('carName').value = saved; } catch {}
+$('carName').addEventListener('change', () => { try { localStorage.setItem('carName', $('carName').value); } catch {} });
 
 /* ============ Início ============ */
 $('btnBle').onclick = () => connect(connectBLE);

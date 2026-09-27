@@ -11,6 +11,7 @@ Scanner OBD-II que roda no navegador (Chrome/Edge) e conversa com adaptadores EL
 - Detecção de protocolo com reserva: se o automático falhar, testa um protocolo por vez (comum em clones)
 - **Referência**: pinagem J1962, protocolos, comandos AT e fórmulas
 - **Log** e envio de comando manual
+- **Exportar e perguntar à IA**: toda tela tem *Copiar JSON*, *Baixar JSON* e *Perguntar à IA*. No celular abre a folha de compartilhar (ChatGPT, Gemini, Claude); no computador copia a pergunta e abre o ChatGPT ou o Claude já preenchidos. A aba *Meu C3* tem o **Relatório completo** (ficha + falhas + sensores + tensão num JSON só)
 
 ## Rodar localmente
 ```bash
