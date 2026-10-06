@@ -20,10 +20,10 @@ function connectDemo(){
     else if (c >= 45 && c < 65){ spd = 60 + 2 * Math.sin(c); mode = 'cruise'; }
     else if (c >= 65 && c < 80){ spd = 60 - (c - 65) * 4; mode = 'decel'; }
     temp += (92 - temp) * Math.min(1, dt / 50);
-    const rpm = mode === 'idle' ? 820 + rnd(15) : mode === 'decel' ? 900 + spd * 28 : 950 + spd * 33 + (mode === 'accel' ? 400 : 0);
+    const rpm = mode === 'idle' ? 820 + rnd(15) : mode === 'decel' ? 850 + spd * 20 : 850 + spd * 21 + (mode === 'accel' ? 450 : 0) + rnd(10);
     const map = { idle: 33, accel: 68, cruise: 44, decel: 21 }[mode] + rnd(1.5);
     const closed = temp > 70 && mode !== 'decel';
-    phase += dt * 2 * Math.PI * (mode === 'idle' ? 0.9 : 1.7);
+    phase += dt * 2 * Math.PI * (mode === 'idle' ? 0.6 : 1.1);
     let pre;
     if (mode === 'decel') pre = 0.06 + rnd(0.02);
     else if (!closed) pre = temp < 50 ? 0.45 + rnd(0.01) : 0.72 + rnd(0.05);

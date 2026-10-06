@@ -2,6 +2,19 @@
 
 Scanner OBD-II que roda no navegador (Chrome/Edge) e conversa com adaptadores ELM327 via **Web Bluetooth** (BLE) ou **Web Serial** (Bluetooth clássico/USB). Sem build, sem conta e sem servidor: tudo fica no aparelho.
 
+**Abrir o app:** https://paulpessoa.github.io/elm327-scanner/ (sem adaptador, use o **Modo demonstração**)
+
+| Painel | Sondas lambda | Configurar mostrador |
+|---|---|---|
+| ![Painel com ponteiro de RPM, velocidade, temperatura, consumo e gráfico da sonda](docs/painel.png) | ![Osciloscópio das sondas pré e pós-catalisador com métricas](docs/sondas.png) | ![Diálogo de configuração de um mostrador](docs/config.png) |
+
+<sub>Imagens do modo demonstração (motor simulado).</sub>
+
+## Por que existe
+Para chegar na oficina sabendo o que o carro está dizendo. O app lê o que a central do motor já informa pela tomada OBD-II: sensores, códigos de falha, sondas lambda e consumo. Assim dá para conhecer o veículo, acompanhar a saúde dele, conversar com o mecânico com dados na mão e evitar trocar peça no chute.
+
+É seguro por natureza: o OBD-II genérico serve para **ler**. A única escrita que o app faz é apagar códigos de falha, e só quando você confirma. Reprogramar módulos, codificar peças ou mexer em imobilizador exige ferramentas e códigos de acesso da montadora, que este app não tem nem tenta usar. Ele não substitui o mecânico: é o "exame" que você leva para a consulta.
+
 ## O que faz
 - **Painel personalizável** (inspirado nos apps de painel de carro): várias páginas, mostradores de **ponteiro, arco, digital, barra, barra vertical e gráfico**, cada um com escala, cor, tamanho, marca de pico, mín/méd/máx e **histórico embutido** (10 s a 15 min). Toque e segure para configurar. Tela cheia deitada para usar no suporte.
 - **Alertas por sensor** (mínimo e máximo): o mostrador fica vermelho, toca, vibra e manda notificação do sistema. Tem atraso e histerese para não ficar disparando no limite.

@@ -193,6 +193,7 @@ dialog{background:var(--bg);color:var(--text);border:1px solid var(--line);borde
 dialog::backdrop{background:rgba(0,0,0,.6)}
 .wform{padding:16px;display:flex;flex-direction:column;gap:8px}
 .wform h2{margin:0 0 4px;border:0}
+.wform p:empty{display:none}
 .prev{background:var(--panel2);border:1px solid var(--line);border-radius:12px;overflow:hidden;position:sticky;top:-16px;z-index:1}
 .prev canvas{width:100%;height:160px}
 .lbl{font-size:.84rem;color:var(--muted);margin-top:4px}
