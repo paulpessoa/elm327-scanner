@@ -50,7 +50,9 @@ function defaultCfg(){
     outside: { keys: OUT_DEFAULT.slice() },
     lambda: { pre: 'p14', post: 'p15', win: 20, focus: 'both', layout: 'overlay' },
     trip: newTrip(),
-    base: {}
+    base: {},
+    runs: [], runCur: null, runOpt: { auto: true },
+    fills: []
   };
 }
 
@@ -68,6 +70,25 @@ function cleanTrip(o){
   }));
   return t;
 }
+// Histórico de viagens (uma por conexão). Só números conhecidos, com limites, e poucos textos fixos.
+const RUN_NUM = { t0: 9e15, t1: 9e15, km: 1e5, L: 1e4, price: 100, corr: 200, eth: 100, idle_s: 1e6, move_s: 1e6, hirpm_s: 1e6, fast_s: 1e6,
+  vmax: 300, acc: 1e5, arr: 1e5, brk: 1e5, idleL: 1e4, temp0: 200 };
+function cleanRun(o){
+  if (!isObj(o)) return null;
+  const r = {};
+  for (const [k, hi] of Object.entries(RUN_NUM)) r[k] = k === 'temp0' ? (optNum(o[k]) == null ? null : numIn(o[k], -40, hi, null)) : numIn(o[k], 0, hi, 0);
+  r.fuel = oneOf(o.fuel, FUELS, 'mix'); r.src = oneOf(o.src, DISTS, 'obd');
+  r.car = typeof o.car === 'string' && /^[a-z0-9]{2,12}$/.test(o.car) ? o.car : '';
+  return r.t0 ? r : null;
+}
+// Abastecimentos informados pelo usuário: hodômetro do painel, litros, preço e combustível
+function cleanFill(o){
+  if (!isObj(o)) return null;
+  const f = { t: numIn(o.t, 0, 9e15, 0), odo: numIn(o.odo, 0, 2e6, 0), L: numIn(o.L, 0, 200, 0), price: numIn(o.price, 0, 100, 0),
+    fuel: oneOf(o.fuel, ['gas', 'eth', 'mix', 'diesel'], 'gas'), full: o.full !== false };
+  return f.t && f.odo && f.L ? f : null;
+}
+
 // Linha de base: valores medidos no próprio carro (mín, média no tempo, máx, nº de leituras)
 function cleanBase(o){
   const out = {};
@@ -135,6 +156,10 @@ function sanitizeCfg(o){
   }
   d.trip = cleanTrip(o.trip);
   d.base = cleanBase(o.base);
+  if (Array.isArray(o.runs)) d.runs = o.runs.slice(-300).map(cleanRun).filter(Boolean);
+  d.runCur = cleanRun(o.runCur);
+  if (isObj(o.runOpt)) d.runOpt = { auto: o.runOpt.auto !== false };
+  if (Array.isArray(o.fills)) d.fills = o.fills.slice(-300).map(cleanFill).filter(Boolean).sort((a, b) => a.odo - b.odo);
   return d;
 }
 

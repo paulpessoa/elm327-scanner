@@ -548,7 +548,7 @@ function liveList(){
 }
 function buildTiles(list){
   $('tiles').innerHTML = list.map(p => { const d = PIDS[p];
-    return '<div class="tile" id="t' + hex2(p) + '"><span>' + esc(d.name) + '</span><b>--</b><span>' + (d.unit || '') + '</span>' +
+    return '<div class="tile" id="t' + hex2(p) + '"><button class="tinfo" data-info="' + hex2(p) + '" aria-label="O que é ' + esc(d.name) + '?">i</button><span>' + esc(d.name) + '</span><b>--</b><span>' + (d.unit || '') + '</span>' +
       (d.ref ? '<small>ref.: ' + d.ref + '</small>' : '') +
       (d.f ? '<button class="tadd" data-add="' + hex2(p) + '" aria-label="Adicionar ' + esc(d.name) + ' ao painel" title="Adicionar ao painel">＋</button>' : '') + '</div>'; }).join('');
 }
@@ -559,6 +559,7 @@ function setTile(p, val, na){
   t.querySelector('b').textContent = val;
 }
 $('tiles').onclick = e => {
+  const inf = e.target.closest('[data-info]'); if (inf){ openInfo('p' + inf.dataset.info); return; }
   const b = e.target.closest('[data-add]'); if (!b) return;
   dashAddSensor('p' + b.dataset.add);
   b.textContent = '✓'; setTimeout(() => b.textContent = '＋', 1200);
