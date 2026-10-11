@@ -10,6 +10,8 @@ const WTYPES = ['dial', 'arc', 'digital', 'hbar', 'vbar', 'graph'];
 const ACCENTS = { amber:'#ffb000', green:'#4cc38a', blue:'#5aa9e6', cyan:'#3dd6d0', purple:'#b48cf2', red:'#ef5350', white:'#e9e6de' };
 const FUELS = ['gas', 'eth', 'mix', 'diesel'];
 const DISTS = ['obd', 'gps'];
+// Fora do app: água, bateria, consumo instantâneo e média da viagem
+const OUT_DEFAULT = ['p05', 'atrv', 'c:kml', 'c:avg'];
 
 const uid = () => Math.random().toString(36).slice(2, 10);
 const str = (v, max, def = '') => typeof v === 'string' ? v.replace(/[\u0000-\u001f]/g, '').slice(0, max) : def;
@@ -45,7 +47,7 @@ function defaultCfg(){
     pages, page: 0,
     alerts: { p05: { on: true, min: null, max: 110 }, atrv: { on: true, min: 11.8, max: 15.0 }, p42: { on: false, min: 12.5, max: 15.0 } },
     alertOpt: { sound: true, vibrate: true, notify: true, delay: 2 },
-    outside: { keys: ['p05', 'c:avg', 'p0C', 'atrv'] },
+    outside: { keys: OUT_DEFAULT.slice() },
     lambda: { pre: 'p14', post: 'p15', win: 20, focus: 'both', layout: 'overlay' },
     trip: newTrip(),
     base: {}
@@ -122,6 +124,8 @@ function sanitizeCfg(o){
     delay: numIn(o.alertOpt.delay, 0, 30, 2)
   };
   if (isObj(o.outside) && Array.isArray(o.outside.keys)) d.outside.keys = o.outside.keys.filter(k => typeof k === 'string' && KEY_RE.test(k)).slice(0, 4);
+  // Quem nunca mexeu (ainda está no padrão antigo) passa para o novo padrão
+  if (d.outside.keys.join() === 'p05,c:avg,p0C,atrv') d.outside.keys = OUT_DEFAULT.slice();
   if (isObj(o.lambda)){
     const l = o.lambda;
     d.lambda = {
