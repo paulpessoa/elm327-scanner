@@ -9,12 +9,16 @@ const env = { ble: false, serial: false };
 function envCheck(){
   const pp = document.permissionsPolicy || document.featurePolicy;
   const allowed = f => { try { return pp ? pp.allowsFeature(f) : true; } catch { return true; } };
-  const ios = /iPhone|iPad|iPod/.test(navigator.userAgent);
+  const ua = navigator.userAgent;
+  const ios = /iPhone|iPad|iPod/.test(ua);
+  const samsung = /SamsungBrowser/i.test(ua), webview = /; wv\)/.test(ua);
   env.ble = !!navigator.bluetooth && allowed('bluetooth');
   env.serial = !!navigator.serial && allowed('serial');
   const msg = [];
   if (!isSecureContext) msg.push('A página precisa abrir em HTTPS (ou localhost) para acessar o Bluetooth.');
-  if (ios && !navigator.bluetooth) msg.push('O Safari do iPhone e do iPad não tem Bluetooth na web. Use o navegador <b>Bluefy</b> (só com adaptador BLE), um Android ou um computador com Chrome.');
+  if (samsung) msg.push('Você está no <b>Samsung Internet</b>, que não tem Bluetooth na web. Abra este endereço no <b>Chrome</b> (copie o link ou use o menu → “Abrir em outro navegador”). Se instalou o app pela Samsung Internet, instale de novo pelo Chrome.');
+  else if (webview) msg.push('Esta página abriu dentro de outro app (WhatsApp, Instagram…), que não libera o Bluetooth. Abra o link no <b>Chrome</b>.');
+  else if (ios && !navigator.bluetooth) msg.push('O Safari do iPhone e do iPad não tem Bluetooth na web. Use o navegador <b>Bluefy</b> (só com adaptador BLE), um Android ou um computador com Chrome.');
   else if (!navigator.bluetooth && !navigator.serial) msg.push('Este navegador não suporta Bluetooth na web. Use o <b>Chrome</b> ou o <b>Edge</b>.');
   else if (navigator.bluetooth && !allowed('bluetooth')) msg.push('O Bluetooth está bloqueado porque esta página está embutida em outra (iframe). Abra o link direto no Chrome, por exemplo pelo GitHub Pages.');
   $('banner').innerHTML = msg.map(m => '<p>' + m + '</p>').join('');
@@ -25,27 +29,63 @@ function envCheck(){
 const BLE_SERVICES = [0xffe0, 0xfff0, 0x18f0, 0xae30, 'e7810a71-73ae-499d-8c15-faa9aef0c3f2'];
 const SPP = '00001101-0000-1000-8000-00805f9b34fb';
 
+// Pares conhecidos de serviço → [notificação, escrita] dos adaptadores BLE mais vendidos
+const BLE_PAIRS = {
+  '0000ffe0': ['0000ffe1', '0000ffe1'], '0000fff0': ['0000fff1', '0000fff2'], '000018f0': ['00002af0', '00002af1'],
+  'e7810a71': ['bef8d6c9', 'bef8d6c9']
+};
+// Traduz os erros do Web Bluetooth para o que o usuário pode fazer
+function bleHint(e){
+  const m = String(e?.message || e);
+  if (e?.name === 'NotFoundError') return 'Nenhum adaptador escolhido. Se a lista veio vazia: ligue a Localização do celular e, em Configurações → Apps → Chrome → Permissões, permita “Dispositivos por perto” (Samsung: “Dispositivos próximos”). Se o adaptador for Bluetooth clássico, use “Serial”.';
+  if (e?.name === 'SecurityError') return 'O navegador bloqueou o Bluetooth nesta página. Abra o link direto no Chrome (HTTPS).';
+  if (/GATT|connect|Connection|network/i.test(m)) return 'O adaptador não aceitou a conexão (' + m + '). Ele só atende um aparelho por vez: feche Torque, Car Scanner ou o app em outro celular, desligue o Bluetooth do outro celular, tire e recoloque o adaptador na tomada e tente de novo.';
+  return m;
+}
 async function connectBLE(){
-  const device = await navigator.bluetooth.requestDevice({ acceptAllDevices: true, optionalServices: BLE_SERVICES });
+  let device;
+  try { device = await navigator.bluetooth.requestDevice({ acceptAllDevices: true, optionalServices: BLE_SERVICES }); }
+  catch (e) { throw new Error(bleHint(e)); }
   log('Dispositivo escolhido: ' + (device.name || '(sem nome)'));
-  const server = await device.gatt.connect();
-  let services;
-  try { services = await server.getPrimaryServices(); }
-  catch { device.gatt.disconnect(); throw new Error('O dispositivo não expõe nenhum serviço serial conhecido (FFE0/FFF0/18F0). Pode ser Bluetooth clássico: tente “Serial”.'); }
+  // Alguns Android (Samsung em especial) falham na 1ª tentativa de GATT logo após escolher o aparelho
+  let server, services;
+  for (let i = 1; ; i++){
+    try {
+      server = await device.gatt.connect();
+      await sleep(i === 1 ? 300 : 800);   // tempo para o Android terminar a descoberta de serviços
+      services = await server.getPrimaryServices();
+      break;
+    } catch (e) {
+      log('⚠ Tentativa ' + i + ' de conexão BLE: ' + e.message);
+      try { device.gatt.disconnect(); } catch {}
+      if (e.name === 'NotFoundError'){ throw new Error('O dispositivo não expõe nenhum serviço serial conhecido (FFE0/FFF0/18F0). Pode ser Bluetooth clássico: tente “Serial”.'); }
+      if (i >= 3) throw new Error(bleHint(e));
+      await sleep(1000 * i);
+    }
+  }
   const gatt = []; let pick = null;
   for (const s of services){
     const chars = await s.getCharacteristics().catch(() => []);
     gatt.push({ servico: s.uuid, caracteristicas: chars.map(c => ({ uuid: c.uuid,
       props: ['read','write','writeWithoutResponse','notify','indicate'].filter(p => c.properties[p]).join(', ') })) });
-    const n = chars.find(c => c.properties.notify || c.properties.indicate);
-    const w = chars.find(c => c.properties.write || c.properties.writeWithoutResponse);
-    if (!pick && n && w) pick = { n, w, s };
+    const known = BLE_PAIRS[s.uuid.slice(0, 8)];
+    const byId = id => chars.find(c => c.uuid.startsWith(id));
+    const canN = c => c && (c.properties.notify || c.properties.indicate), canW = c => c && (c.properties.write || c.properties.writeWithoutResponse);
+    let n = known && byId(known[0]), w = known && byId(known[1]);
+    if (!canN(n) || !canW(w)){
+      // Desconhecido: prefere uma característica que notifica e escreve; senão, uma de cada
+      const both = chars.find(c => canN(c) && canW(c));
+      n = both || chars.find(canN); w = both || chars.find(c => canW(c) && c !== n) || chars.find(canW);
+    }
+    if (canN(n) && canW(w) && (!pick || (known && !pick.known))) pick = { n, w, s, known: !!known };
   }
   if (!pick){ device.gatt.disconnect(); throw new Error('Não encontrei uma característica de escrita e uma de notificação no mesmo serviço.'); }
   let cb = () => {};
   pick.n.addEventListener('characteristicvaluechanged', e => cb(dec.decode(e.target.value)));
-  await pick.n.startNotifications();
+  try { await pick.n.startNotifications(); }
+  catch (e) { log('⚠ Notificações: ' + e.message + '. Tentando de novo.'); await sleep(500); await pick.n.startNotifications(); }
   device.addEventListener('gattserverdisconnected', onLost);
+  let noResp = !!pick.w.properties.writeWithoutResponse;
   return {
     kind: 'BLE', name: device.name || '(sem nome)',
     meta: { 'ID no navegador': device.id, 'Serviço': pick.s.uuid, 'Característica de escrita': pick.w.uuid, 'Característica de notificação': pick.n.uuid },
@@ -55,8 +95,14 @@ async function connectBLE(){
       const data = enc.encode(str);
       for (let i = 0; i < data.length; i += 20){
         const chunk = data.slice(i, i + 20);
-        if (pick.w.properties.writeWithoutResponse) await pick.w.writeValueWithoutResponse(chunk);
-        else await pick.w.writeValue(chunk);
+        try {
+          if (noResp) await pick.w.writeValueWithoutResponse(chunk); else await pick.w.writeValueWithResponse(chunk);
+        } catch (e) {
+          // Alguns clones anunciam os dois modos mas só aceitam um; troca e tenta de novo
+          if (!pick.w.properties.write || !pick.w.properties.writeWithoutResponse) throw e;
+          noResp = !noResp; log('⚠ Escrita BLE falhou (' + e.message + '). Trocando o modo de escrita.');
+          if (noResp) await pick.w.writeValueWithoutResponse(chunk); else await pick.w.writeValueWithResponse(chunk);
+        }
       }
     },
     close(){ device.removeEventListener('gattserverdisconnected', onLost); if (device.gatt.connected) device.gatt.disconnect(); }

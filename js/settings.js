@@ -9,6 +9,14 @@ function bindVehicle(){
   $('vFuel').value = v.fuel;
   $('vEthRow').hidden = v.fuel !== 'mix';
   $('vFuel').onchange = e => { v.fuel = oneOf(e.target.value, FUELS, 'mix'); $('vEthRow').hidden = v.fuel !== 'mix'; saveCfg(); };
+  $('vDist').value = v.dist;
+  $('vDist').onchange = e => {
+    v.dist = oneOf(e.target.value, DISTS, 'obd');
+    // Novo hodômetro: o km em andamento recomeça para não misturar as duas fontes
+    cfg.trip.segKm = tripKm(); cfg.trip.segL = cfg.trip.L;
+    if (v.dist === 'gps') gpsStart();
+    saveCfg(); tripUpdate(); tripShow(); dashNeed();
+  };
   $('btnTripReset').onclick = () => { if (confirm('Zerar a distância, o combustível e o custo da viagem?')){ resetTrip(); tripShow(); } };
   // Calibração pelo posto: encha o tanque, zere a viagem, rode, encha de novo e informe os litros
   $('btnCalib').onclick = () => {
@@ -22,14 +30,22 @@ function bindVehicle(){
 }
 setInterval(() => tabOpen('ajustes') && tripShow(), 3000);
 addEventListener('tab', e => { if (e.detail === 'ajustes') tripShow(); });
+const FUEL_SRC = { ecu: 'taxa de combustível informada pela ECU (PID 5E)', maf: 'sensor de fluxo de ar (MAF) + mistura estequiométrica',
+  map: 'estimativa pela pressão do coletor, giro, temperatura do ar, cilindrada e eficiência volumétrica (speed-density)' };
 function tripShow(){
-  const t = cfg.trip;
+  const t = cfg.trip, km = tripKm(), dist = cfg.vehicle.dist === 'gps' ? 'GPS' : 'OBD';
+  const cell = (v, u) => '<div><b>' + v + '</b><span>' + u + '</span></div>';
   $('tripOut').innerHTML =
-    '<div><b>' + t.km.toFixed(1) + '</b><span>km</span></div>' +
-    '<div><b>' + t.L.toFixed(2) + '</b><span>litros</span></div>' +
-    '<div><b>' + (t.L > 0.02 ? (t.km / t.L).toFixed(1) : '--') + '</b><span>km/L</span></div>' +
-    '<div><b>' + (t.L * cfg.vehicle.price).toFixed(2) + '</b><span>R$</span></div>';
-  $('tripSince').textContent = 'Desde ' + new Date(t.since).toLocaleString();
+    cell(km.toFixed(1), 'km (' + dist + ')') + cell(t.L.toFixed(2), 'litros') +
+    cell(t.L > 0.02 && km >= 0.1 ? (km / t.L).toFixed(1) : '--', 'km/L') + cell((t.L * cfg.vehicle.price).toFixed(2), 'R$');
+  const diff = t.kmObd > 1 && t.kmGps > 1 ? ' · OBD marcou ' + ((t.kmObd / t.kmGps - 1) * 100).toFixed(1).replace('-0.0', '0.0') + '% em relação ao GPS' : '';
+  $('tripSince').textContent = 'Desde ' + new Date(t.since).toLocaleString() + ' · OBD ' + t.kmObd.toFixed(2) + ' km · GPS ' + t.kmGps.toFixed(2) + ' km' + diff;
+  $('fuelSrc').textContent = fuelSrc ? 'Litros calculados por: ' + FUEL_SRC[fuelSrc] + (fuelSrc === 'ecu' ? '.' : '. É uma estimativa até você calibrar pelo posto.') : 'Litros: aguardando leitura do motor.';
+  // Um trecho por km percorrido, do mais recente para o mais antigo
+  const segs = t.segs.slice(-60).reverse();
+  $('segOut').innerHTML = segs.length ? '<tr><th>km</th><th>litros</th><th>km/L</th><th>fonte</th><th>hora</th></tr>' + segs.map(g =>
+    '<tr><td>' + g.km.toFixed(1) + '</td><td>' + g.L.toFixed(3) + '</td><td>' + (g.L > 0.001 ? (g.d / g.L).toFixed(1) : '--') + '</td><td>' + g.src.toUpperCase() +
+    '</td><td>' + new Date(g.t).toLocaleTimeString() + '</td></tr>').join('') : '<tr><td class="muted">Nenhum km completo ainda.</td></tr>';
 }
 
 /* ---- Backup: levar tudo para outro aparelho ---- */
@@ -41,7 +57,7 @@ function importBackup(txt){
   const c = sanitizeCfg(o.config);
   const nw = c.pages.reduce((a, p) => a + p.w.length, 0);
   if (!confirm('Substituir as configurações deste aparelho pelas do backup?\n\n' + c.pages.length + ' páginas, ' + nw + ' mostradores, ' +
-    Object.keys(c.alerts).length + ' alertas e a viagem (' + c.trip.km.toFixed(1) + ' km).')) return;
+    Object.keys(c.alerts).length + ' alertas e a viagem (' + (c.vehicle.dist === 'gps' ? c.trip.kmGps : c.trip.kmObd).toFixed(1) + ' km).')) return;
   cfg = c;
   const name = str(o.carro, 80);
   if (name){ $('carName').value = name; try { localStorage.setItem('carName', name); } catch {} }
@@ -67,7 +83,7 @@ function bindBackup(){
 }
 function refreshAll(){
   alertState.clear(); renderAlertBar();
-  bindVehicle(); renderAlertList(); syncAlertOpts(); bindOutsideSettings(); lamSync();
+  bindVehicle(); renderAlertList(); syncAlertOpts(); bindOutsideSettings(); lamSync(); renderCars();
   renderDash(); dashNeed(); outsideNeed();
 }
 

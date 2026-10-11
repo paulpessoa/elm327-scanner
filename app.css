@@ -208,3 +208,8 @@ legend{color:var(--lcd);font-weight:600;padding:0 6px}
 .dlgbtns{position:sticky;bottom:-16px;background:var(--bg);padding:8px 0;margin:0}
 .dlgbtns button[hidden]{display:none}
 @media (max-width:420px){ .stats.four{grid-template-columns:repeat(2,1fr)} .seg{grid-template-columns:repeat(2,1fr)} }
+/* Abas dos carros e GPS */
+.carbox .chips{margin:6px 0 10px;flex-wrap:wrap;overflow:visible}
+.carbox button.on{border-color:var(--ok);color:var(--ok)}
+.c-bad{color:var(--bad);font-weight:600}
+.segs{max-height:260px;overflow:auto}

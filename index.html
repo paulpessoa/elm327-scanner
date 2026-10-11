@@ -38,7 +38,9 @@
     <button role="tab" data-tab="tensao" aria-selected="false">Tensão</button>
     <button role="tab" data-tab="falhas" aria-selected="false">Falhas</button>
     <button role="tab" data-tab="ficha" aria-selected="false">Ficha</button>
-    <button role="tab" data-tab="c3" aria-selected="false">Meu C3</button>
+    <button role="tab" data-tab="c3" aria-selected="false">C3</button>
+    <button role="tab" data-tab="mobi" aria-selected="false">Mobi</button>
+    <button role="tab" data-tab="duster" aria-selected="false">Duster</button>
     <button role="tab" data-tab="ajustes" aria-selected="false">Ajustes</button>
     <button role="tab" data-tab="ref" aria-selected="false">Referência</button>
     <button role="tab" data-tab="log" aria-selected="false">Log</button>
@@ -70,6 +72,7 @@
       <button id="btnPip">◳ Janela flutuante</button>
       <button id="btnLock">🔒 Tela bloqueada</button>
       <button id="btnNotif">🔔 Notificação fixa</button>
+      <button id="btnGps">📍 Ligar GPS</button>
     </div>
     <p class="small muted">Os sensores mostrados fora do app são escolhidos em <b>Ajustes</b>. A janela flutuante fica por cima de outros apps (mapas, música). “Tela bloqueada” usa o controle de mídia do Android para mostrar os valores sem desbloquear.</p>
     <div class="row" data-export="painel"></div>
@@ -230,12 +233,10 @@
       <dt>Protocolo</dt><dd>Detectado sozinho pelo app. Se falhar, ele tenta um por um (CAN, KWP e ISO).</dd>
     </dl>
 
+    <div class="carbox" data-car="c3"></div>
+
     <h3>Relatório completo</h3>
-    <p class="small">Junta ficha, falhas, sensores e tensão num JSON só, pronto para mandar para uma IA ou para um mecânico.</p>
-    <div class="row">
-      <label for="carName" class="small muted hint">Carro:</label>
-      <input id="carName" style="flex:1 1 220px" value="Citroën C3 2010 1.4 8V TU3JP flex" aria-label="Carro enviado junto com os dados">
-    </div>
+    <p class="small">Junta ficha, falhas, sensores, tensão, viagem e a linha de base num JSON só, pronto para mandar para uma IA ou para um mecânico.</p>
     <div class="row" data-export="tudo"></div>
 
     <h3>O que o ELM327 lê neste carro</h3>
@@ -273,10 +274,62 @@
     <p class="small muted">Não use o app com o carro em movimento. Se precisar testar rodando, deixe outra pessoa dirigir.</p>
   </section>
 
+  <!-- FIAT MOBI -->
+  <section id="mobi" class="tab" role="tabpanel">
+    <h2>Fiat Mobi · manual · direção hidráulica</h2>
+    <p class="small muted">Não sabe qual motor é o seu? Conte os cilindros: o Fire tem 4, o Firefly tem 3 (o ronco é diferente e a tampa do motor indica). Confira no documento do carro ou no manual.</p>
+    <div class="carbox" data-car="mobi"></div>
+
+    <h3>O que o ELM327 lê neste carro</h3>
+    <p class="small">Só a central do <b>motor</b>, pelo OBD-II genérico. O protocolo é detectado sozinho e aparece na aba <b>Ficha</b>.</p>
+    <p class="small muted">ABS, airbag, central da carroceria e painel usam protocolo próprio da Fiat e precisam da ferramenta da concessionária ou de um app com perfil Fiat.</p>
+    <ul class="small">
+      <li><b>Câmbio manual:</b> não há central de câmbio. O OBD não informa a marcha.</li>
+      <li><b>Direção hidráulica:</b> a bomba é tocada pela correia do motor, então virar o volante parado aumenta a carga do motor. Não há sensor da direção no OBD genérico; o efeito aparece no giro e na carga.</li>
+      <li><b>Flex:</b> o percentual de etanol (PID 52) geralmente não é informado: aparece “n/s”. Em Ajustes, escolha o combustível do tanque para a estimativa de consumo.</li>
+    </ul>
+
+    <h3>Teste da direção hidráulica (parado, motor quente)</h3>
+    <ol class="steps small">
+      <li>Painel lendo <b>RPM</b> e <b>Carga do motor</b>, com o carro parado e freio de mão puxado.</li>
+      <li>Vire o volante devagar de um lado ao outro. <b>Não segure no fim do curso</b> por mais de alguns segundos: isso força a bomba.</li>
+      <li>Normal: o giro oscila um pouco e volta, a carga sobe enquanto você vira. Anote os valores que o <i>seu</i> carro mostrou.</li>
+      <li>Se o motor quase apagar, chiar ou a direção pesar: vale olhar correia, nível do fluido e limpeza do corpo de borboleta com o mecânico.</li>
+    </ol>
+    <p class="small muted">O app não tem um valor “de fábrica” para isso: compare com a sua própria medição de hoje daqui a alguns meses.</p>
+
+    <h3>Relatório completo</h3>
+    <div class="row" data-export="tudo"></div>
+  </section>
+
+  <!-- RENAULT DUSTER -->
+  <section id="duster" class="tab" role="tabpanel">
+    <h2>Renault Duster 2018 · manual · 4x2</h2>
+    <p class="small muted">Em 2018 o Duster manual 4x2 saiu com 1.6 16V SCe ou 2.0 16V. Confira no documento do carro ou na tampa do motor.</p>
+    <div class="carbox" data-car="duster"></div>
+
+    <h3>O que o ELM327 lê neste carro</h3>
+    <p class="small">Só a central do <b>motor</b>, pelo OBD-II genérico. O protocolo é detectado sozinho e aparece na aba <b>Ficha</b>.</p>
+    <p class="small muted">ABS, airbag, central da carroceria (UCH) e painel usam o protocolo próprio da Renault. Para esses módulos é preciso a ferramenta oficial (CLIP) ou um app com perfil Renault.</p>
+    <ul class="small">
+      <li><b>Câmbio manual:</b> não há central de câmbio. O OBD não informa a marcha.</li>
+      <li><b>4x2:</b> só tração dianteira; não há módulo de tração 4x4 para ler.</li>
+      <li><b>Flex:</b> o percentual de etanol (PID 52) geralmente não é informado. Em Ajustes, escolha o combustível do tanque.</li>
+    </ul>
+
+    <h3>Relatório completo</h3>
+    <div class="row" data-export="tudo"></div>
+  </section>
+
   <!-- AJUSTES -->
   <section id="ajustes" class="tab" role="tabpanel">
     <h2>Carro e consumo</h2>
-    <p class="small muted">O consumo é calculado a partir do ar admitido (sensor MAF ou, sem ele, pela pressão do coletor, giro e temperatura do ar) e do combustível. Para o C3 1.4 o padrão já vem preenchido.</p>
+    <div class="row">
+      <label for="carName" class="small muted hint">Carro:</label>
+      <input id="carName" style="flex:1 1 220px" value="Citroën C3 2010 1.4 8V TU3JP flex" aria-label="Carro enviado junto com os dados">
+    </div>
+    <p class="small muted">Nas abas <b>C3</b>, <b>Mobi</b> e <b>Duster</b>, “Usar este carro” preenche o nome e a cilindrada.</p>
+    <p class="small muted">Nenhum desses carros mede o combustível que passa pelo bico: os litros são <b>calculados</b> a partir do ar admitido (sensor MAF ou, sem ele, pela pressão do coletor, giro e temperatura do ar). A eficiência volumétrica é um chute inicial; o que deixa o número confiável é a <b>calibração pelo posto</b>, logo abaixo.</p>
     <div class="form">
       <label>Cilindrada (L)<input id="vDisp" type="number" step="0.01" min="0.5" max="8" inputmode="decimal"></label>
       <label>Eficiência volumétrica (%)<input id="vVe" type="number" step="1" min="40" max="120" inputmode="numeric"></label>
@@ -284,11 +337,20 @@
       <label id="vEthRow">Etanol no tanque (%)<input id="vEth" type="number" step="5" min="0" max="100" inputmode="numeric"></label>
       <label>Preço por litro (R$)<input id="vPrice" type="number" step="0.01" min="0" max="100" inputmode="decimal"></label>
       <label>Fator de correção (%)<input id="vCorr" type="number" step="0.5" min="50" max="200" inputmode="decimal"></label>
+      <label>Distância pela<select id="vDist"><option value="obd">Velocidade do carro (OBD)</option><option value="gps">GPS do celular</option></select></label>
     </div>
+    <div class="row"><button id="btnGps2">📍 Ligar GPS</button><span id="gpsMsg" class="small muted hint" aria-live="polite"></span></div>
+    <p class="small muted">O velocímetro e a velocidade do OBD costumam marcar um pouco a mais que o real. Com o GPS, a distância (e as médias por km) vem do caminho medido pelo celular. Os dois hodômetros correm juntos para você comparar. O GPS gasta bateria e o Android pausa a localização com a tela apagada: use “Manter tela ligada” e deixe o celular no carregador.</p>
+    <p id="fuelSrc" class="small muted"></p>
     <h3>Viagem</h3>
     <div id="tripOut" class="stats four"></div>
     <p id="tripSince" class="small muted"></p>
     <div class="row"><button id="btnTripReset">Zerar viagem</button></div>
+    <details>
+      <summary>Consumo a cada km rodado</summary>
+      <p class="small">Cada linha é um quilômetro completo: litros gastos naquele km e o km/L dele. A média da viagem é sempre <b>distância ÷ litros</b>, nunca a média das leituras instantâneas.</p>
+      <div class="tw segs"><table id="segOut"></table></div>
+    </details>
     <details>
       <summary>Calibrar o consumo pelo posto</summary>
       <p class="small">Encha o tanque, zere a viagem e rode normalmente (quanto mais, melhor). No posto, encha de novo e digite quantos litros entraram. O app ajusta o fator de correção.</p>
@@ -429,6 +491,9 @@
     <div class="tw"><table>
       <tr><th>Sintoma</th><th>O que fazer</th></tr>
       <tr><td>O adaptador não aparece no BLE</td><td>Provavelmente é Bluetooth clássico. Pareie no sistema e use “Serial”.</td></tr>
+      <tr><td>Samsung (S24 etc.): botões de conectar apagados</td><td>Está no Samsung Internet, que não tem Bluetooth na web. Abra no <b>Chrome</b>.</td></tr>
+      <tr><td>Lista de dispositivos vazia no Android</td><td>Ligue a Localização e permita “Dispositivos próximos” para o Chrome (Configurações → Apps → Chrome → Permissões).</td></tr>
+      <tr><td>Funciona num celular e não no outro</td><td>O adaptador atende um aparelho por vez. Desligue o Bluetooth do outro celular e feche apps como Torque ou Car Scanner. Tire e recoloque o adaptador.</td></tr>
       <tr><td>Erro “permissions policy”</td><td>A página está dentro de outra (iframe). Abra o link direto no Chrome.</td></tr>
       <tr><td><code>UNABLE TO CONNECT</code></td><td>Chave desligada, ou o carro usa um protocolo que o clone não suporta</td></tr>
       <tr><td><code>NO DATA</code></td><td>O carro não tem esse dado, ou a ECU demorou a responder</td></tr>
@@ -501,6 +566,8 @@
 <script src="js/alerts.js"></script>
 <script src="js/lambda.js"></script>
 <script src="js/outside.js"></script>
+<script src="js/gps.js"></script>
+<script src="js/cars.js"></script>
 <script src="js/settings.js"></script>
 <script src="js/demo.js"></script>
 <script src="js/main.js"></script>
