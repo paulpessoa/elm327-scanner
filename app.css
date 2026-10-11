@@ -239,3 +239,25 @@ details.run summary{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;
 details.run summary b{font-variant-numeric:tabular-nums}
 details.run ul{margin:4px 0 12px;padding-left:20px}
 details.run li{margin:4px 0;line-height:1.45}
+/* Modo simples e aviso de falhas */
+.modes{margin:4px 0 12px}
+.healthbar{display:flex;gap:8px;align-items:center;margin:8px 0;padding:10px 12px;border-radius:12px;font-size:.92rem;line-height:1.4}
+.healthbar span{flex:1}
+.healthbar.bad{background:rgba(239,83,80,.15);border:1px solid var(--bad)}
+.healthbar.warn{background:rgba(240,180,41,.13);border:1px solid var(--warn)}
+.sstatus{display:flex;gap:14px;align-items:flex-start;padding:16px;border-radius:16px;background:var(--panel);border:2px solid var(--line);margin-bottom:12px}
+.sstatus b{font-size:1.45rem}
+.sstatus p{margin:4px 0 0;color:var(--muted)}
+.sstatus ul{margin:8px 0 0;padding-left:18px;line-height:1.45}
+.sicon{flex:0 0 52px;height:52px;border-radius:50%;display:grid;place-items:center;font-size:1.7rem;font-weight:700;background:var(--panel2);color:var(--muted)}
+.s-ok{border-color:var(--ok)}.s-ok .sicon{background:var(--ok);color:#06210f}
+.s-warn{border-color:var(--warn)}.s-warn .sicon{background:var(--warn);color:#2a1d00}
+.s-bad{border-color:var(--bad)}.s-bad .sicon{background:var(--bad);color:#fff}
+.scards{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.scard{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:6px;text-align:left;padding:14px;border-radius:14px;background:var(--panel);min-height:150px}
+.scard .sl{color:var(--muted);font-size:.9rem}
+.scard b{font-size:2.1rem;font-variant-numeric:tabular-nums;color:var(--text);line-height:1}
+.scard b small{font-size:.9rem;color:var(--muted);font-weight:400}
+.scard .lvl{margin:0}
+.scard .sm{font-size:.82rem;color:var(--muted);line-height:1.35}
+.sinfo{position:absolute;top:10px;right:10px;width:22px;height:22px;border-radius:50%;border:1px solid var(--line);font:italic 700 .8rem/20px Georgia,serif;text-align:center;color:var(--muted)}

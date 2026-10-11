@@ -23,6 +23,7 @@
   <div id="banner" class="banner" role="alert"></div>
 
   <div class="status" aria-live="polite"><span id="dot" class="dot"></span><span id="statusTxt">Desconectado</span></div>
+  <div id="healthBar" class="healthbar" role="alert" hidden></div>
 
   <div class="row">
     <button id="btnBle" class="primary">Conectar via BLE</button>
@@ -49,6 +50,15 @@
 
   <!-- PAINEL -->
   <section id="painel" class="tab on" role="tabpanel">
+    <div id="modeChips" class="chips modes" role="tablist" aria-label="Tipo de painel">
+      <button class="chip" role="tab" data-mode="simple" aria-selected="false">Simples</button>
+      <button class="chip" role="tab" data-mode="full" aria-selected="false">Completo</button>
+    </div>
+    <div id="simpleView" hidden>
+      <div id="sStatus" class="sstatus" aria-live="polite"></div>
+      <div id="sCards" class="scards"></div>
+      <p class="small muted">Toque em um cartão para entender o que o valor quer dizer. Ao conectar, o app também confere se o carro registrou alguma falha.</p>
+    </div>
     <div id="dashWrap" class="dashwrap">
       <div class="dashbar">
         <div id="pages" class="chips" role="tablist" aria-label="Páginas do painel"></div>
@@ -66,7 +76,7 @@
       <p id="dashInfo" class="small muted dinfo" aria-live="polite"></p>
       <div id="grid" class="grid"></div>
     </div>
-    <p class="small muted">Toque e segure um mostrador (ou clique duas vezes) para escolher o sensor, o tipo de mostrador, a escala, a cor, o histórico e os alertas.</p>
+    <p id="dashHint" class="small muted">Toque e segure um mostrador (ou clique duas vezes) para escolher o sensor, o tipo de mostrador, a escala, a cor, o histórico e os alertas.</p>
     <h3>Ver fora do app</h3>
     <div class="row outrow">
       <button id="btnWake">☀ Manter tela ligada</button>
@@ -635,6 +645,7 @@
 <script src="js/gps.js"></script>
 <script src="js/cars.js"></script>
 <script src="js/trips.js"></script>
+<script src="js/health.js"></script>
 <script src="js/settings.js"></script>
 <script src="js/demo.js"></script>
 <script src="js/main.js"></script>

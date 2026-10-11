@@ -83,7 +83,7 @@ function bindBackup(){
 }
 function refreshAll(){
   alertState.clear(); renderAlertBar();
-  bindVehicle(); renderAlertList(); syncAlertOpts(); bindOutsideSettings(); lamSync(); renderCars(); renderRuns();
+  bindVehicle(); renderAlertList(); syncAlertOpts(); bindOutsideSettings(); lamSync(); renderCars(); renderRuns(); setMode(cfg.simple);
   renderDash(); dashNeed(); outsideNeed();
 }
 

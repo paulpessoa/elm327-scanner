@@ -52,7 +52,8 @@ function defaultCfg(){
     trip: newTrip(),
     base: {},
     runs: [], runCur: null, runOpt: { auto: true },
-    fills: []
+    fills: [],
+    simple: true, dtcKnown: []
   };
 }
 
@@ -158,6 +159,8 @@ function sanitizeCfg(o){
   d.base = cleanBase(o.base);
   if (Array.isArray(o.runs)) d.runs = o.runs.slice(-300).map(cleanRun).filter(Boolean);
   d.runCur = cleanRun(o.runCur);
+  d.simple = o.simple === true;   // configuração salva antes do modo simples continua no painel completo
+  if (Array.isArray(o.dtcKnown)) d.dtcKnown = o.dtcKnown.filter(c => typeof c === 'string' && /^[PCBU][0-9A-F]{4}$/.test(c)).slice(0, 50);
   if (isObj(o.runOpt)) d.runOpt = { auto: o.runOpt.auto !== false };
   if (Array.isArray(o.fills)) d.fills = o.fills.slice(-300).map(cleanFill).filter(Boolean).sort((a, b) => a.odo - b.odo);
   return d;

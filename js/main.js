@@ -28,7 +28,7 @@ function viagemData(){
 
 envCheck();
 draw();
-bindVehicle(); bindAlertList(); renderAlertList(); bindOutsideSettings(); lamBindCtl(); bindBackup(); bindGps(); bindCars(); bindRuns();
+bindVehicle(); bindAlertList(); renderAlertList(); bindOutsideSettings(); lamBindCtl(); bindBackup(); bindGps(); bindCars(); bindRuns(); setMode(cfg.simple);
 if (cfg.vehicle.dist === 'gps') gpsStart();
 renderDash();
 

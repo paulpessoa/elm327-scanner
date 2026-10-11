@@ -204,7 +204,7 @@ function setDash(on){
   if (dashOn) dashNeed(); else release('painel');
 }
 $('btnDash').onclick = () => setDash(!dashOn);
-addEventListener('connected', () => setDash(true));
+addEventListener('connected', () => setDash(!cfg.simple));
 addEventListener('disconnected', () => setDash(false));
 engineOn('status', s => $('dashInfo').textContent = s);
 setInterval(() => {
