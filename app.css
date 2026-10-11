@@ -261,3 +261,11 @@ details.run li{margin:4px 0;line-height:1.45}
 .scard .lvl{margin:0}
 .scard .sm{font-size:.82rem;color:var(--muted);line-height:1.35}
 .sinfo{position:absolute;top:10px;right:10px;width:22px;height:22px;border-radius:50%;border:1px solid var(--line);font:italic 700 .8rem/20px Georgia,serif;text-align:center;color:var(--muted)}
+/* Manutenção */
+.mitem{background:var(--panel);border-radius:12px;padding:10px 12px;margin:8px 0}
+.mhead{display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap}
+.mrow{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0 4px}
+.mrow label{font-size:.8rem;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+.mitem .row{margin:4px 0 0;align-items:center}
+.mitem .row .danger{margin-left:auto}
+.mitem .row button{flex:0 0 auto;width:auto;padding:8px 12px}

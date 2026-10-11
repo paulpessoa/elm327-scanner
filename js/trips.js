@@ -99,7 +99,7 @@ function sum(list){
 // Entre dois tanques cheios: km = diferença do hodômetro; litros = tudo que entrou depois do primeiro.
 // O combustível queimado é o que foi colocado no primeiro (e nos parciais do meio).
 function fillIntervals(){
-  const f = cfg.fills, out = [];
+  const f = carFills(), out = [];
   let j = -1;
   for (let i = 0; i < f.length; i++){
     if (!f[i].full) continue;
@@ -114,6 +114,8 @@ function fillIntervals(){
   }
   return out;
 }
+// Cada carro tem o próprio hodômetro: os abastecimentos são separados por carro
+const carFills = () => cfg.fills.filter(f => f.car === cfg.vehicle.car);
 const FUEL_NAME = { gas: 'Gasolina', eth: 'Etanol', mix: 'Mistura', diesel: 'Diesel' };
 function fuelCompare(){
   const iv = fillIntervals(), by = {};
@@ -160,8 +162,8 @@ function renderRuns(){
   }).join('') : '<p class="empty">Nenhuma viagem ainda. Conecte o adaptador no carro e dirija: ao desconectar, a viagem aparece aqui.</p>';
   const fc = fuelCompare();
   $('fuelCmp').innerHTML = fc.html; $('fuelVerdict').innerHTML = fc.verdict;
-  $('fillList').innerHTML = cfg.fills.length ? '<tr><th>data</th><th>hodômetro</th><th>litros</th><th>R$/L</th><th></th><th></th></tr>' +
-    cfg.fills.slice().reverse().map(f => '<tr><td>' + new Date(f.t).toLocaleDateString() + '</td><td>' + f.odo + '</td><td>' + f.L.toFixed(2) + '</td><td>' + f.price.toFixed(2) +
+  $('fillList').innerHTML = carFills().length ? '<tr><th>data</th><th>hodômetro</th><th>litros</th><th>R$/L</th><th></th><th></th></tr>' +
+    carFills().slice().reverse().map(f => '<tr><td>' + new Date(f.t).toLocaleDateString() + '</td><td>' + f.odo + '</td><td>' + f.L.toFixed(2) + '</td><td>' + f.price.toFixed(2) +
       '</td><td>' + FUEL_NAME[f.fuel] + (f.full ? '' : ' (parcial)') + '</td><td><button class="mini danger" data-delfill="' + f.t + '" aria-label="Apagar">✕</button></td></tr>').join('')
     : '<tr><td class="muted">Nenhum abastecimento registrado.</td></tr>';
   runUi();
@@ -173,15 +175,15 @@ function bindRuns(){
   $('fPrice').value = cfg.vehicle.price; $('fFuel').value = cfg.vehicle.fuel === 'eth' ? 'eth' : 'gas';
   $('btnFill').onclick = () => {
     const n = id => parseFloat(String($(id).value).replace(',', '.'));
-    const f = cleanFill({ t: Date.now(), odo: n('fOdo'), L: n('fL'), price: n('fPrice'), fuel: $('fFuel').value, full: $('fFull').checked });
+    const f = cleanFill({ t: Date.now(), odo: n('fOdo'), L: n('fL'), price: n('fPrice'), fuel: $('fFuel').value, full: $('fFull').checked, car: cfg.vehicle.car });
     if (!f || !(f.price > 0)){ alert('Preencha o hodômetro (km do painel), os litros e o preço por litro.'); return; }
-    const prev = cfg.fills[cfg.fills.length - 1];
+    const prev = carFills().at(-1);
     if (prev && f.odo <= prev.odo){ alert('O hodômetro precisa ser maior que o do último abastecimento (' + prev.odo + ' km).'); return; }
-    cfg.fills.push(f);
+    cfg.fills.push(f); cfg.fills.sort((a, b) => a.odo - b.odo);
     // O preço e o combustível do abastecimento passam a valer para o consumo e o custo da viagem
     cfg.vehicle.price = f.price;
     if (f.fuel !== 'mix') cfg.vehicle.fuel = f.fuel;
-    saveCfg(); bindVehicle(); renderRuns();
+    saveCfg(); bindVehicle(); renderRuns(); renderMaint();
     $('fOdo').value = ''; $('fL').value = '';
   };
   $('fillList').onclick = e => {
@@ -202,7 +204,7 @@ EXPORTS.viagens = ['Histórico de viagens e abastecimentos', () => {
     viagens: cfg.runs.map(r => ({ inicio: new Date(r.t0).toISOString(), minutos: Math.round((r.t1 - r.t0) / 60000), km: +r.km.toFixed(2), litros: +r.L.toFixed(3),
       kmPorLitro: kml(r) ? +kml(r).toFixed(1) : null, combustivel: FUEL_NAME[r.fuel], estilo: styleOf(r)?.[1] || null, paradoLigado_s: Math.round(r.idle_s),
       acimaDoGiroAlto_s: Math.round(r.hirpm_s), aceleracoesFortes: r.acc, arrancadasFortes: r.arr, frenagensFortes: r.brk, velMax: r.vmax, dicas: tipsOf(r) })),
-    abastecimentos: cfg.fills.map(f => ({ data: new Date(f.t).toISOString(), hodometro: f.odo, litros: f.L, precoLitro: f.price, combustivel: FUEL_NAME[f.fuel], tanqueCheio: f.full })),
+    abastecimentos: cfg.fills.map(f => ({ data: new Date(f.t).toISOString(), hodometro: f.odo, litros: f.L, precoLitro: f.price, combustivel: FUEL_NAME[f.fuel], tanqueCheio: f.full, carro: CARS[f.car]?.nome || f.car })),
     consumoRealEntreTanquesCheios: fc.iv.map(x => ({ km: x.km, litros: +x.L.toFixed(2), kmPorLitro: +x.kml.toFixed(2), reaisPorKm: +x.rkm.toFixed(3), combustivel: FUEL_NAME[x.fuel] }))
   };
 }];

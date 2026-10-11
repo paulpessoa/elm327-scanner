@@ -100,6 +100,7 @@ function simpleStatus(){
   }
   for (const c of health.stored){ up('bad'); const p = dtcPlain(c); why.push('Falha ' + c + (p ? ': ' + p[0] + ' ' + p[2] : '. Mostre este código ao mecânico.')); }
   for (const c of health.pending){ up('warn'); const p = dtcPlain(c); why.push('Falha em observação ' + c + (p ? ': ' + p[0].replace(/\.$/, '') : '') + '. A central ainda está confirmando.'); }
+  for (const [i, s] of maintDue()){ up('warn'); why.push(i.name + ': ' + (s[0] === 'bad' ? 'troca ' + s[1].toLowerCase() : s[1].toLowerCase() + ' para a troca') + '.'); }
   if (health.mil && !health.stored.length){ up('bad'); why.push('A luz de injeção está acesa.'); }
   if (fresh('p05') == null && fresh('atrv') == null) return ['na', 'Lendo o carro…', 'Aguarde alguns segundos.', why];
   if (worst === 'bad') return ['bad', 'Procure um mecânico', /Superaquecendo/.test(why.join()) ? 'Pare em lugar seguro e desligue o motor.' : 'Veja abaixo o que o carro está dizendo.', why];

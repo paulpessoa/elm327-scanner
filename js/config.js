@@ -53,7 +53,7 @@ function defaultCfg(){
     base: {},
     runs: [], runCur: null, runOpt: { auto: true },
     fills: [],
-    simple: true, dtcKnown: []
+    simple: true, dtcKnown: [], maint: {}
   };
 }
 
@@ -86,8 +86,26 @@ function cleanRun(o){
 function cleanFill(o){
   if (!isObj(o)) return null;
   const f = { t: numIn(o.t, 0, 9e15, 0), odo: numIn(o.odo, 0, 2e6, 0), L: numIn(o.L, 0, 200, 0), price: numIn(o.price, 0, 100, 0),
-    fuel: oneOf(o.fuel, ['gas', 'eth', 'mix', 'diesel'], 'gas'), full: o.full !== false };
+    fuel: oneOf(o.fuel, ['gas', 'eth', 'mix', 'diesel'], 'gas'), full: o.full !== false,
+    car: typeof o.car === 'string' && /^[a-z0-9]{2,12}$/.test(o.car) ? o.car : '' };
   return f.t && f.odo && f.L ? f : null;
+}
+
+// Manutenção por carro: hodômetro informado e itens (intervalo e última troca em km)
+function cleanMaint(o){
+  const out = {};
+  if (!isObj(o)) return out;
+  for (const [car, m] of Object.entries(o).slice(0, 10)){
+    if (!/^[a-z0-9]{2,12}$/.test(car) || !isObj(m)) continue;
+    const odo = isObj(m.odo) && optNum(m.odo.km) != null ? { km: numIn(m.odo.km, 0, 2e6, 0), t: numIn(m.odo.t, 0, 9e15, 0) } : null;
+    const items = (Array.isArray(m.items) ? m.items : []).slice(0, 30).filter(isObj).map(i => ({
+      id: str(i.id, 12) || uid(), name: str(i.name, 40) || 'Item',
+      every: optNum(i.every) == null ? null : Math.round(numIn(i.every, 0, 500000, 0)) || null,
+      last: optNum(i.last) == null ? null : Math.round(numIn(i.last, 0, 2e6, 0)), lastT: numIn(i.lastT, 0, 9e15, 0)
+    }));
+    out[car] = { odo, items };
+  }
+  return out;
 }
 
 // Linha de base: valores medidos no próprio carro (mín, média no tempo, máx, nº de leituras)
@@ -162,7 +180,9 @@ function sanitizeCfg(o){
   d.simple = o.simple === true;   // configuração salva antes do modo simples continua no painel completo
   if (Array.isArray(o.dtcKnown)) d.dtcKnown = o.dtcKnown.filter(c => typeof c === 'string' && /^[PCBU][0-9A-F]{4}$/.test(c)).slice(0, 50);
   if (isObj(o.runOpt)) d.runOpt = { auto: o.runOpt.auto !== false };
-  if (Array.isArray(o.fills)) d.fills = o.fills.slice(-300).map(cleanFill).filter(Boolean).sort((a, b) => a.odo - b.odo);
+  // Abastecimentos antigos (sem carro) ficam com o carro em uso
+  if (Array.isArray(o.fills)) d.fills = o.fills.slice(-300).map(cleanFill).filter(Boolean).map(f => ({ ...f, car: f.car || d.vehicle.car })).sort((a, b) => a.odo - b.odo);
+  d.maint = cleanMaint(o.maint);
   return d;
 }
 
