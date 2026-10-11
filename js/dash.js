@@ -139,12 +139,21 @@ function gaugeState(w, now = Date.now()){
     let mn = Infinity, mx = -Infinity, sum = 0;
     for (const x of hist.v){ if (x < mn) mn = x; if (x > mx) mx = x; sum += x; }
     max = mx; st = { min: mn, max: mx, avg: sum / hist.v.length };
+    // km/L: a média do período é km rodados ÷ litros gastos nele, não a média das leituras instantâneas
+    // (parado ou na banguela essas leituras pesariam igual a um minuto de estrada)
+    if (w.k === 'c:kml') st.avg = distAvg(w.win * 1000, now);
   }
   return {
     type: d.text ? 'digital' : w.type, title: w.title || d.name, unit: d.unit, lo, hi, dec, v, a: v,
     color: ACCENTS[w.color], zones: { ok: d.ok, min: al?.on ? al.min : null, max: al?.on ? al.max : null },
     alert: alertActive(w.k), peak: w.peak, max, hist, showHist: w.hist, stats: w.stats, st, win: w.win, auto: w.auto
   };
+}
+function distAvg(ms, now){
+  const k = store.since('c:km', ms, now).v, l = store.since('c:fuel', ms, now).v;
+  if (k.length < 2 || l.length < 2) return null;
+  const dk = k[k.length - 1] - k[0], dl = l[l.length - 1] - l[0];
+  return dk > 0.05 && dl > 0.002 ? dk / dl : null;
 }
 engineOn('value', () => kickDraw());
 addEventListener('tab', e => { if (e.detail === 'painel'){ layoutDash(); kickDraw(); } });

@@ -5,10 +5,11 @@
 // Nenhum texto do usuário vai para innerHTML sem esc(); a CSP do index.html bloqueia scripts de fora.
 
 const CFG_KEY = 'elm327.cfg.v1';
-const KEY_RE = /^(p[0-9A-F]{2}|atrv|c:[a-z]{2,6})$/;
+const KEY_RE = /^(p[0-9A-F]{2}|atrv|c:[a-z0-9]{2,6})$/;
 const WTYPES = ['dial', 'arc', 'digital', 'hbar', 'vbar', 'graph'];
 const ACCENTS = { amber:'#ffb000', green:'#4cc38a', blue:'#5aa9e6', cyan:'#3dd6d0', purple:'#b48cf2', red:'#ef5350', white:'#e9e6de' };
 const FUELS = ['gas', 'eth', 'mix', 'diesel'];
+const DISTS = ['obd', 'gps'];
 
 const uid = () => Math.random().toString(36).slice(2, 10);
 const str = (v, max, def = '') => typeof v === 'string' ? v.replace(/[\u0000-\u001f]/g, '').slice(0, max) : def;
@@ -40,14 +41,43 @@ function defaultCfg(){
   const pages = defaultPages().map(p => ({ name: p.name, w: p.w.map(cleanWidget) }));
   return {
     v: 1,
-    vehicle: { disp: 1.36, ve: 80, fuel: 'mix', ethanol: 50, price: 6.0, corr: 100 },
+    vehicle: { disp: 1.36, ve: 80, fuel: 'mix', ethanol: 50, price: 6.0, corr: 100, dist: 'obd', car: 'c3' },
     pages, page: 0,
     alerts: { p05: { on: true, min: null, max: 110 }, atrv: { on: true, min: 11.8, max: 15.0 }, p42: { on: false, min: 12.5, max: 15.0 } },
     alertOpt: { sound: true, vibrate: true, notify: true, delay: 2 },
     outside: { keys: ['p05', 'c:avg', 'p0C', 'atrv'] },
     lambda: { pre: 'p14', post: 'p15', win: 20, focus: 'both', layout: 'overlay' },
-    trip: { km: 0, L: 0, since: Date.now() }
+    trip: newTrip(),
+    base: {}
   };
+}
+
+// kmObd/kmGps: os dois hodômetros correm juntos; segKm/segL marcam o início do km atual; segs: um item por km
+function newTrip(){ return { kmObd: 0, kmGps: 0, L: 0, since: Date.now(), segKm: 0, segL: 0, segs: [] }; }
+function cleanTrip(o){
+  const t = newTrip();
+  if (!isObj(o)) return t;
+  t.kmObd = numIn(o.kmObd ?? o.km, 0, 1e6, 0);   // backups antigos só tinham "km" (pela velocidade do OBD)
+  t.kmGps = numIn(o.kmGps, 0, 1e6, 0);
+  t.L = numIn(o.L, 0, 1e5, 0); t.since = numIn(o.since, 0, 9e15, Date.now());
+  t.segKm = numIn(o.segKm, 0, 1e6, 0); t.segL = numIn(o.segL, 0, 1e5, 0);
+  if (Array.isArray(o.segs)) t.segs = o.segs.slice(-500).filter(isObj).map(g => ({
+    km: numIn(g.km, 0, 1e6, 0), d: numIn(g.d, 0, 100, 1), L: numIn(g.L, 0, 100, 0), t: numIn(g.t, 0, 9e15, 0), src: oneOf(g.src, DISTS, 'obd')
+  }));
+  return t;
+}
+// Linha de base: valores medidos no próprio carro (mín, média no tempo, máx, nº de leituras)
+function cleanBase(o){
+  const out = {};
+  if (!isObj(o)) return out;
+  for (const [car, b] of Object.entries(o).slice(0, 10)){
+    if (!/^[a-z0-9]{2,12}$/.test(car) || !isObj(b) || !isObj(b.v)) continue;
+    const v = {};
+    for (const [k, a] of Object.entries(b.v).slice(0, 80))
+      if (KEY_RE.test(k) && Array.isArray(a) && a.length === 4 && a.every(x => optNum(x) != null)) v[k] = a.map(Number);
+    out[car] = { t: numIn(b.t, 0, 9e15, 0), s: numIn(b.s, 0, 3600, 0), v };
+  }
+  return out;
 }
 
 function cleanWidget(w){
@@ -73,7 +103,8 @@ function sanitizeCfg(o){
   d.vehicle = {
     disp: numIn(v.disp, 0.5, 8, d.vehicle.disp), ve: numIn(v.ve, 40, 120, d.vehicle.ve),
     fuel: oneOf(v.fuel, FUELS, d.vehicle.fuel), ethanol: numIn(v.ethanol, 0, 100, d.vehicle.ethanol),
-    price: numIn(v.price, 0, 100, d.vehicle.price), corr: numIn(v.corr, 50, 200, d.vehicle.corr)
+    price: numIn(v.price, 0, 100, d.vehicle.price), corr: numIn(v.corr, 50, 200, d.vehicle.corr),
+    dist: oneOf(v.dist, DISTS, 'obd'), car: typeof v.car === 'string' && /^[a-z0-9]{2,12}$/.test(v.car) ? v.car : d.vehicle.car
   };
   if (Array.isArray(o.pages)){
     const pages = o.pages.slice(0, 12).filter(isObj).map(p => ({
@@ -98,7 +129,8 @@ function sanitizeCfg(o){
       win: oneOf(l.win, [10, 20, 30, 60], 20), focus: oneOf(l.focus, ['both', 'pre'], 'both'), layout: oneOf(l.layout, ['overlay', 'split'], 'overlay')
     };
   }
-  if (isObj(o.trip)) d.trip = { km: numIn(o.trip.km, 0, 1e6, 0), L: numIn(o.trip.L, 0, 1e5, 0), since: numIn(o.trip.since, 0, 9e15, Date.now()) };
+  d.trip = cleanTrip(o.trip);
+  d.base = cleanBase(o.base);
   return d;
 }
 

@@ -40,7 +40,13 @@ const CALC = {
   'c:km':   { name:'Distância da viagem', unit:'km', r:[0,500], d:1 },
   'c:fuel': { name:'Combustível gasto', unit:'L', r:[0,60], d:2 },
   'c:cost': { name:'Custo da viagem', unit:'R$', r:[0,500], d:2 },
-  'c:maf':  { name:'Fluxo de ar (calculado)', unit:'g/s', r:[0,60], d:1 }
+  'c:maf':  { name:'Fluxo de ar (calculado)', unit:'g/s', r:[0,60], d:1 },
+  'c:kml1': { name:'Média do último km', unit:'km/L', r:[0,25], d:1 },
+  'c:l100': { name:'Consumo da viagem', unit:'L/100km', r:[0,20], d:1 },
+  'c:kmo':  { name:'Distância pelo OBD', unit:'km', r:[0,500], d:2 },
+  'c:kmg':  { name:'Distância pelo GPS', unit:'km', r:[0,500], d:2 },
+  'c:gspd': { name:'Velocidade (GPS)', unit:'km/h', r:[0,200], d:0 },
+  'c:gacc': { name:'Precisão do GPS', unit:'m', r:[0,50], ok:[0,20], d:0 }
 };
 const UNIT_R = { '%':[0,100], '°C':[-40,130], 'kPa':[0,110], 'V':[0,16], 'λ':[0.7,1.3], 'rpm':[0,7000], 'km/h':[0,200], '°':[-20,50] };
 
@@ -111,11 +117,16 @@ function deps(k){
   const known = !!state.pids?.size;
   const maf = has(0x10) ? ['p10'] : known ? ['p0B', 'p0C', 'p0F'] : ['p10', 'p0B', 'p0C', 'p0F'];
   const lph = has(0x5E) ? ['p5E'] : [...maf, 'p0C', 'p0B', 'p03'];
+  // Com a distância pelo GPS, a velocidade do carro (0D) só serve para o consumo instantâneo
+  const spd = cfg.vehicle.dist === 'gps' ? [] : ['p0D'];
   switch (k){
     case 'c:maf': return maf;
     case 'c:lph': return lph;
-    case 'c:km': return ['p0D'];
-    case 'c:kml': case 'c:avg': case 'c:fuel': case 'c:cost': return [...lph, 'p0D'];
+    case 'c:km': return spd;
+    case 'c:kmo': return ['p0D'];
+    case 'c:kmg': case 'c:gspd': case 'c:gacc': return [];
+    case 'c:kml': return [...lph, 'p0D'];
+    case 'c:avg': case 'c:fuel': case 'c:cost': case 'c:kml1': case 'c:l100': return [...lph, ...spd];
   }
   return [k];
 }
@@ -268,19 +279,21 @@ function fuelProps(){
   const x = v.ethanol / 100;
   return { afr: GAS.afr + (ETH.afr - GAS.afr) * x, dens: GAS.dens + (ETH.dens - GAS.dens) * x };
 }
-let calcT = 0, tripSaveT = 0;
+// De onde vem o combustível estimado (aparece em Ajustes, para ninguém achar que é medição direta)
+let calcT = 0, fuelT = 0, tripSaveT = 0, fuelSrc = '';
 function calcUpdate(){
   const now = Date.now(), v = cfg.vehicle;
-  let maf = fresh('p10');
-  const map = fresh('p0B'), rpm = fresh('p0C');
-  if (maf == null && map != null && rpm != null){
+  let maf = fresh('p10'), src = maf != null ? 'maf' : '';
+  const map = fresh('p0B'), rpm = fresh('p0C'), iat = fresh('p0F');
+  if (maf == null && map != null && rpm != null && iat != null){
     // Densidade do ar no coletor (MAP + temperatura de admissão) × cilindrada × eficiência volumétrica
-    const iat = fresh('p0F') ?? 30;
     maf = map * 1000 * (v.disp / 1000) * (v.ve / 100) / (287.05 * (iat + 273.15)) * rpm / 120 * 1000;
+    src = 'map';
   }
   if (maf != null) store.set('c:maf', +maf.toFixed(2), now);
   let lph = fresh('p5E');
-  if (lph == null && maf != null){
+  if (lph != null) src = 'ecu';
+  else if (maf != null){
     const f = fuelProps();
     lph = maf / f.afr / f.dens * 3600 * v.corr / 100;
     // Corte de combustível na desaceleração: malha aberta, coletor em vácuo alto e giro acima da lenta
@@ -288,28 +301,56 @@ function calcUpdate(){
     if (typeof fs === 'string' && /desacelera/.test(fs) && map != null && map < 30 && rpm > 1200) lph = 0;
     if (rpm === 0) lph = 0;
   }
+  fuelSrc = lph != null ? src : '';
   if (lph != null) store.set('c:lph', +lph.toFixed(2), now);
-  const spd = fresh('p0D');
+  // km/L instantâneo: velocidade ÷ litros por hora (GPS quando ele é a fonte da distância)
+  const spdGps = cfg.vehicle.dist === 'gps' ? fresh('c:gspd', 4000) : null;
+  const spd = spdGps ?? fresh('p0D');
   if (spd != null && lph != null) store.set('c:kml', spd < 3 ? null : +Math.min(99.9, spd / Math.max(lph, 0.05)).toFixed(1), now);
-  if (spd != null){
+
+  // Integração no tempo: litros sempre; distância pelo OBD só quando a velocidade é atual
+  const t = cfg.trip;
+  const dtF = (now - fuelT) / 1000;
+  if (fuelT && lph != null && dtF > 0 && dtF < 5) t.L += lph * dtF / 3600;
+  fuelT = lph != null ? now : 0;
+  const obd = fresh('p0D');
+  if (obd != null){
     const dt = (now - calcT) / 1000;
-    if (calcT && dt > 0 && dt < 5){
-      cfg.trip.km += spd * dt / 3600;
-      if (lph != null) cfg.trip.L += lph * dt / 3600;
-    }
+    if (calcT && dt > 0 && dt < 5) t.kmObd += obd * dt / 3600;
     calcT = now;
-    const t = cfg.trip;
-    store.set('c:km', +t.km.toFixed(2), now);
-    store.set('c:fuel', +t.L.toFixed(3), now);
-    store.set('c:avg', t.L > 0.02 ? +(t.km / t.L).toFixed(1) : null, now);
-    store.set('c:cost', +(t.L * v.price).toFixed(2), now);
-    if (now - tripSaveT > 15000){ tripSaveT = now; saveCfg(); }
-  }
-}
-function resetTrip(){
-  cfg.trip = { km: 0, L: 0, since: Date.now() }; calcT = 0; saveCfg();
-  ['c:km', 'c:fuel', 'c:cost'].forEach(k => store.set(k, 0)); store.set('c:avg', null);
+  } else calcT = 0;
+  tripUpdate(now);
 }
 
-addEventListener('disconnected', () => { engine.consumers.clear(); engine.dead.clear(); engine.multi = null; calcT = 0; saveCfg(); });
+/* ---- Viagem: distância escolhida (OBD ou GPS), litros e médias por quilômetro ---- */
+const tripKm = () => cfg.vehicle.dist === 'gps' ? cfg.trip.kmGps : cfg.trip.kmObd;
+function tripUpdate(now = Date.now()){
+  const t = cfg.trip, v = cfg.vehicle, km = tripKm();
+  // Fecha um trecho a cada quilômetro percorrido: litros gastos naquele km
+  if (km < t.segKm) { t.segKm = km; t.segL = t.L; }
+  if (km - t.segKm >= 1){
+    const d = km - t.segKm, L = t.L - t.segL;
+    t.segs.push({ km: +km.toFixed(2), d: +d.toFixed(3), L: +L.toFixed(4), t: now, src: v.dist });
+    if (t.segs.length > 500) t.segs.shift();
+    t.segKm = km; t.segL = t.L;
+  }
+  const last = t.segs[t.segs.length - 1];
+  store.set('c:km', +km.toFixed(2), now);
+  store.set('c:kmo', +t.kmObd.toFixed(2), now);
+  store.set('c:kmg', +t.kmGps.toFixed(2), now);
+  store.set('c:fuel', +t.L.toFixed(3), now);
+  // Médias sempre como distância ÷ litros (nunca média de leituras instantâneas)
+  store.set('c:avg', t.L > 0.02 && km >= 0.1 ? +(km / t.L).toFixed(1) : null, now);
+  store.set('c:l100', t.L > 0 && km >= 0.5 ? +(t.L / km * 100).toFixed(1) : null, now);
+  store.set('c:kml1', last && last.L > 0.001 ? +Math.min(99.9, last.d / last.L).toFixed(1) : null, now);
+  store.set('c:cost', +(t.L * v.price).toFixed(2), now);
+  if (now - tripSaveT > 15000){ tripSaveT = now; saveCfg(); }
+}
+function resetTrip(){
+  cfg.trip = newTrip(); calcT = 0; fuelT = 0; saveCfg();
+  ['c:km', 'c:kmo', 'c:kmg', 'c:fuel', 'c:cost'].forEach(k => store.set(k, 0));
+  ['c:avg', 'c:l100', 'c:kml1'].forEach(k => store.set(k, null));
+}
+
+addEventListener('disconnected', () => { engine.consumers.clear(); engine.dead.clear(); engine.multi = null; calcT = 0; fuelT = 0; saveCfg(); });
 addEventListener('connected', () => { engine.dead.clear(); engine.multi = null; });

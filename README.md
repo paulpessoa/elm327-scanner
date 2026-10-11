@@ -19,13 +19,14 @@ Para chegar na oficina sabendo o que o carro está dizendo. O app lê o que a ce
 - **Painel personalizável** (inspirado nos apps de painel de carro): várias páginas, mostradores de **ponteiro, arco, digital, barra, barra vertical e gráfico**, cada um com escala, cor, tamanho, marca de pico, mín/méd/máx e **histórico embutido** (10 s a 15 min). Toque e segure para configurar. Tela cheia deitada para usar no suporte.
 - **Alertas por sensor** (mínimo e máximo): o mostrador fica vermelho, toca, vibra e manda notificação do sistema. Tem atraso e histerese para não ficar disparando no limite.
 - **Sondas lambda**: osciloscópio da pré e da pós-catalisador com leitura prioritária, trocas por 10 s, frequência, amplitude, tempo no rico, tempo de resposta, **índice do catalisador**, diagnóstico automático (só julga em malha fechada) e **teste de resposta** (acelerar e soltar). Suporta sondas de banda larga.
-- **Consumo e viagem** calculados: L/h, km/L instantâneo, média, distância, litros e custo. Usa o MAF ou, sem ele, a pressão do coletor (speed-density). Calibração pelo posto.
+- **Consumo e viagem**: L/h, km/L instantâneo, média da viagem, **km/L de cada km rodado**, L/100 km, distância, litros e custo. Médias são sempre distância ÷ litros. Litros vêm da ECU (PID 5E), do MAF ou da pressão do coletor (speed-density), e o app mostra qual. Calibração pelo posto.
+- **GPS do celular** como fonte da distância (opcional): hodômetro do OBD e do GPS lado a lado, com filtro de precisão e de ponto parado.
 - **Fora do app**: manter tela ligada, **janela flutuante** (picture-in-picture, por cima de outros apps), valores no **player da tela bloqueada** do Android e notificação fixa.
 - **Tensão** da bateria (`ATRV`) com gráfico e calibração (`ATCV`)
 - **Ficha**: versão, teste de clone, protocolo, PIDs suportados, padrão OBD, combustível, VIN e serviços GATT
 - **Sensores**: todos os PIDs do modo 01 que a ECU suporta, com gravação em CSV (`;` e vírgula decimal, para o Excel em português)
 - **Falhas**: lê (`03`), pendentes (`07`) e apaga (`04`) códigos; monitores de prontidão e congelamento (`02`)
-- **Meu C3**: perfil do Citroën C3 2010 1.4 TU3JP, valores de referência e roteiro de teste
+- **C3, Mobi e Duster**: perfis do Citroën C3 2010 1.4 TU3JP, Fiat Mobi 1.0 (Fire Evo ou Firefly, manual, direção hidráulica) e Renault Duster 2018 (1.6 SCe ou 2.0, manual, 4x2). Cada um com **linha de base**: 2 min de marcha lenta gravados no próprio carro, para comparar depois.
 - **Exportar e perguntar à IA** em toda tela; **Relatório completo** junta tudo num JSON
 - **Backup**: exporta e importa painéis, alertas, viagem e ajustes para levar a outro aparelho
 - **Modo demonstração**: um ELM327 simulado com motor virtual (CAN), para testar sem carro
@@ -43,6 +44,7 @@ Um único laço (`js/engine.js`) atende todas as telas. Cada tela pede os sensor
 | `js/engine.js` | Laço de leitura, multi-PID, histórico, sensores calculados |
 | `js/gauges.js`, `js/dash.js` | Mostradores e painel |
 | `js/alerts.js`, `js/lambda.js`, `js/outside.js` | Alertas, osciloscópio das sondas, exibição fora do app |
+| `js/gps.js`, `js/cars.js` | Distância pelo GPS; perfis dos carros e linha de base |
 | `js/settings.js`, `js/demo.js`, `js/main.js` | Ajustes/backup, simulador, inicialização |
 | `sw.js`, `manifest.webmanifest` | Offline, notificações e instalação |
 
@@ -61,6 +63,6 @@ O Bluetooth exige HTTPS ou `localhost`, e não funciona se a página estiver den
 ## Compatibilidade
 | | BLE | Bluetooth clássico (SPP) | Janela flutuante | Tela bloqueada |
 |---|---|---|---|---|
-| Chrome Android | ✅ | depende da versão | ✅ | ✅ (player de mídia) |
+| Chrome Android (Samsung: use o Chrome, não o Samsung Internet) | ✅ | depende da versão | ✅ | ✅ (player de mídia) |
 | Chrome Windows/Mac | ✅ | ✅ (117+) | ✅ | controle de mídia |
 | iPhone | só pelo app Bluefy | ❌ | ❌ | ❌ |
