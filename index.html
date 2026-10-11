@@ -117,6 +117,20 @@
       <button id="btnRunClr" class="danger">Apagar histórico de viagens</button>
     </div>
 
+    <h2>Quilometragem e trocas</h2>
+    <p id="mCar" class="small muted"></p>
+    <div class="row">
+      <input id="mOdo" type="number" inputmode="numeric" min="0" step="1" style="flex:1 1 160px" aria-label="Quilometragem atual do carro">
+      <button id="btnOdo" class="primary">Salvar km atual</button>
+    </div>
+    <p id="mOdoInfo" class="small"></p>
+    <div id="mList"></div>
+    <div class="row">
+      <input id="mNewName" maxlength="40" placeholder="Outro item (ex.: bateria)" style="flex:1 1 160px" aria-label="Nome do novo item">
+      <button id="btnMNew">Adicionar item</button>
+    </div>
+    <p class="small muted">Os intervalos mudam de carro para carro: copie do manual ou do plano de revisão. Quem roda muito em trânsito pesado, poeira ou trajetos curtos costuma ter que trocar antes (o manual chama de “uso severo”). Ao registrar um abastecimento, o km do hodômetro também atualiza aqui.</p>
+
     <h2>Abastecimentos</h2>
     <p class="small">O jeito mais confiável de saber o consumo real: no posto, anote o <b>hodômetro</b> (km total do painel) e os litros. Com dois tanques cheios seguidos, o app calcula o km/L de verdade, sem estimativa.</p>
     <div class="form">
@@ -487,20 +501,6 @@
 
   <!-- REFERÊNCIA -->
   <section id="ref" class="tab" role="tabpanel">
-    <h2>Quilometragem e trocas</h2>
-    <p id="mCar" class="small muted"></p>
-    <div class="row">
-      <input id="mOdo" type="number" inputmode="numeric" min="0" step="1" style="flex:1 1 160px" aria-label="Quilometragem atual do carro">
-      <button id="btnOdo" class="primary">Salvar km atual</button>
-    </div>
-    <p id="mOdoInfo" class="small"></p>
-    <div id="mList"></div>
-    <div class="row">
-      <input id="mNewName" maxlength="40" placeholder="Outro item (ex.: bateria)" style="flex:1 1 160px" aria-label="Nome do novo item">
-      <button id="btnMNew">Adicionar item</button>
-    </div>
-    <p class="small muted">Os intervalos mudam de carro para carro: copie do manual ou do plano de revisão. Quem roda muito em trânsito pesado, poeira ou trajetos curtos costuma ter que trocar antes (o manual chama de “uso severo”). Ao registrar um abastecimento, o km do hodômetro também atualiza aqui.</p>
-
     <h2>Conector OBD-II (SAE J1962, 16 pinos)</h2>
     <p class="small muted">Tomada do carro vista de frente, normalmente embaixo do volante.</p>
     <svg class="pin-svg" viewBox="0 0 380 170" role="img" aria-label="Conector OBD-II de 16 pinos visto de frente">

@@ -87,7 +87,7 @@ function bindMaint(){
   };
   renderMaint();
 }
-addEventListener('tab', e => { if (e.detail === 'ref') renderMaint(); });
+addEventListener('tab', e => { if (e.detail === 'viagens') renderMaint(); });
 
 const maintData = () => {
   const o = odoNow();
