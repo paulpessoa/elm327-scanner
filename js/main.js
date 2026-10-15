@@ -13,7 +13,7 @@ EXPORTS.painel = ['Painel e alertas', () => ({
   alertasConfigurados: Object.fromEntries(Object.entries(cfg.alerts).map(([k, a]) => [sensorDef(k)?.name || k, a])),
   alertasDisparados: alertLog.slice(0, 50)
 })];
-EXPORTS.tudo[1] = (orig => () => ({ ...orig(), carro: carData(), sondas: sondasData(), painel: EXPORTS.painel[1]() }))(EXPORTS.tudo[1]);
+EXPORTS.tudo[1] = (orig => () => ({ ...orig(), carro: carData(), manutencao: maintData(), viagens: EXPORTS.viagens[1](), sondas: sondasData(), painel: EXPORTS.painel[1]() }))(EXPORTS.tudo[1]);
 function viagemData(){
   const t = cfg.trip, km = tripKm();
   return {
@@ -28,7 +28,7 @@ function viagemData(){
 
 envCheck();
 draw();
-bindVehicle(); bindAlertList(); renderAlertList(); bindOutsideSettings(); lamBindCtl(); bindBackup(); bindGps(); bindCars();
+bindVehicle(); bindAlertList(); renderAlertList(); bindOutsideSettings(); lamBindCtl(); bindBackup(); bindGps(); bindCars(); bindRuns(); bindMaint(); setMode(cfg.simple);
 if (cfg.vehicle.dist === 'gps') gpsStart();
 renderDash();
 

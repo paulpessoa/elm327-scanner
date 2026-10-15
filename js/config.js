@@ -10,6 +10,8 @@ const WTYPES = ['dial', 'arc', 'digital', 'hbar', 'vbar', 'graph'];
 const ACCENTS = { amber:'#ffb000', green:'#4cc38a', blue:'#5aa9e6', cyan:'#3dd6d0', purple:'#b48cf2', red:'#ef5350', white:'#e9e6de' };
 const FUELS = ['gas', 'eth', 'mix', 'diesel'];
 const DISTS = ['obd', 'gps'];
+// Fora do app: água, bateria, consumo instantâneo e média da viagem
+const OUT_DEFAULT = ['p05', 'atrv', 'c:kml', 'c:avg'];
 
 const uid = () => Math.random().toString(36).slice(2, 10);
 const str = (v, max, def = '') => typeof v === 'string' ? v.replace(/[\u0000-\u001f]/g, '').slice(0, max) : def;
@@ -45,10 +47,13 @@ function defaultCfg(){
     pages, page: 0,
     alerts: { p05: { on: true, min: null, max: 110 }, atrv: { on: true, min: 11.8, max: 15.0 }, p42: { on: false, min: 12.5, max: 15.0 } },
     alertOpt: { sound: true, vibrate: true, notify: true, delay: 2 },
-    outside: { keys: ['p05', 'c:avg', 'p0C', 'atrv'] },
+    outside: { keys: OUT_DEFAULT.slice() },
     lambda: { pre: 'p14', post: 'p15', win: 20, focus: 'both', layout: 'overlay' },
     trip: newTrip(),
-    base: {}
+    base: {},
+    runs: [], runCur: null, runOpt: { auto: true },
+    fills: [],
+    simple: true, dtcKnown: [], maint: {}
   };
 }
 
@@ -66,6 +71,43 @@ function cleanTrip(o){
   }));
   return t;
 }
+// Histórico de viagens (uma por conexão). Só números conhecidos, com limites, e poucos textos fixos.
+const RUN_NUM = { t0: 9e15, t1: 9e15, km: 1e5, L: 1e4, price: 100, corr: 200, eth: 100, idle_s: 1e6, move_s: 1e6, hirpm_s: 1e6, fast_s: 1e6,
+  vmax: 300, acc: 1e5, arr: 1e5, brk: 1e5, idleL: 1e4, temp0: 200 };
+function cleanRun(o){
+  if (!isObj(o)) return null;
+  const r = {};
+  for (const [k, hi] of Object.entries(RUN_NUM)) r[k] = k === 'temp0' ? (optNum(o[k]) == null ? null : numIn(o[k], -40, hi, null)) : numIn(o[k], 0, hi, 0);
+  r.fuel = oneOf(o.fuel, FUELS, 'mix'); r.src = oneOf(o.src, DISTS, 'obd');
+  r.car = typeof o.car === 'string' && /^[a-z0-9]{2,12}$/.test(o.car) ? o.car : '';
+  return r.t0 ? r : null;
+}
+// Abastecimentos informados pelo usuário: hodômetro do painel, litros, preço e combustível
+function cleanFill(o){
+  if (!isObj(o)) return null;
+  const f = { t: numIn(o.t, 0, 9e15, 0), odo: numIn(o.odo, 0, 2e6, 0), L: numIn(o.L, 0, 200, 0), price: numIn(o.price, 0, 100, 0),
+    fuel: oneOf(o.fuel, ['gas', 'eth', 'mix', 'diesel'], 'gas'), full: o.full !== false,
+    car: typeof o.car === 'string' && /^[a-z0-9]{2,12}$/.test(o.car) ? o.car : '' };
+  return f.t && f.odo && f.L ? f : null;
+}
+
+// Manutenção por carro: hodômetro informado e itens (intervalo e última troca em km)
+function cleanMaint(o){
+  const out = {};
+  if (!isObj(o)) return out;
+  for (const [car, m] of Object.entries(o).slice(0, 10)){
+    if (!/^[a-z0-9]{2,12}$/.test(car) || !isObj(m)) continue;
+    const odo = isObj(m.odo) && optNum(m.odo.km) != null ? { km: numIn(m.odo.km, 0, 2e6, 0), t: numIn(m.odo.t, 0, 9e15, 0) } : null;
+    const items = (Array.isArray(m.items) ? m.items : []).slice(0, 30).filter(isObj).map(i => ({
+      id: str(i.id, 12) || uid(), name: str(i.name, 40) || 'Item',
+      every: optNum(i.every) == null ? null : Math.round(numIn(i.every, 0, 500000, 0)) || null,
+      last: optNum(i.last) == null ? null : Math.round(numIn(i.last, 0, 2e6, 0)), lastT: numIn(i.lastT, 0, 9e15, 0)
+    }));
+    out[car] = { odo, items };
+  }
+  return out;
+}
+
 // Linha de base: valores medidos no próprio carro (mín, média no tempo, máx, nº de leituras)
 function cleanBase(o){
   const out = {};
@@ -122,6 +164,8 @@ function sanitizeCfg(o){
     delay: numIn(o.alertOpt.delay, 0, 30, 2)
   };
   if (isObj(o.outside) && Array.isArray(o.outside.keys)) d.outside.keys = o.outside.keys.filter(k => typeof k === 'string' && KEY_RE.test(k)).slice(0, 4);
+  // Quem nunca mexeu (ainda está no padrão antigo) passa para o novo padrão
+  if (d.outside.keys.join() === 'p05,c:avg,p0C,atrv') d.outside.keys = OUT_DEFAULT.slice();
   if (isObj(o.lambda)){
     const l = o.lambda;
     d.lambda = {
@@ -131,6 +175,14 @@ function sanitizeCfg(o){
   }
   d.trip = cleanTrip(o.trip);
   d.base = cleanBase(o.base);
+  if (Array.isArray(o.runs)) d.runs = o.runs.slice(-300).map(cleanRun).filter(Boolean);
+  d.runCur = cleanRun(o.runCur);
+  d.simple = o.simple === true;   // configuração salva antes do modo simples continua no painel completo
+  if (Array.isArray(o.dtcKnown)) d.dtcKnown = o.dtcKnown.filter(c => typeof c === 'string' && /^[PCBU][0-9A-F]{4}$/.test(c)).slice(0, 50);
+  if (isObj(o.runOpt)) d.runOpt = { auto: o.runOpt.auto !== false };
+  // Abastecimentos antigos (sem carro) ficam com o carro em uso
+  if (Array.isArray(o.fills)) d.fills = o.fills.slice(-300).map(cleanFill).filter(Boolean).map(f => ({ ...f, car: f.car || d.vehicle.car })).sort((a, b) => a.odo - b.odo);
+  d.maint = cleanMaint(o.maint);
   return d;
 }
 
