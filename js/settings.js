@@ -1,4 +1,4 @@
-/* ============ Ajustes ============ */
+/* ============ Consumo do veículo, viagem e backup ============ */
 function bindVehicle(){
   const v = cfg.vehicle;
   const fields = [['vDisp', 'disp', 0.5, 8], ['vVe', 've', 40, 120], ['vEth', 'ethanol', 0, 100], ['vPrice', 'price', 0, 100], ['vCorr', 'corr', 50, 200]];
@@ -28,8 +28,8 @@ function bindVehicle(){
   };
   tripShow();
 }
-setInterval(() => tabOpen('ajustes') && tripShow(), 3000);
-addEventListener('tab', e => { if (e.detail === 'ajustes') tripShow(); });
+setInterval(() => tabOpen('perfis') && tripShow(), 3000);
+addEventListener('tab', e => { if (e.detail === 'perfis') tripShow(); });
 const FUEL_SRC = { ecu: 'taxa de combustível informada pela ECU (PID 5E)', maf: 'sensor de fluxo de ar (MAF) + mistura estequiométrica',
   map: 'estimativa pela pressão do coletor, giro, temperatura do ar, cilindrada e eficiência volumétrica (speed-density)' };
 function tripShow(){
@@ -49,7 +49,7 @@ function tripShow(){
 }
 
 /* ---- Backup: levar tudo para outro aparelho ---- */
-const backupData = () => ({ app: 'ELM327 Scanner', tipo: 'backup', versao: 1, geradoEm: new Date().toISOString(), carro: $('carName').value, config: cfg });
+const backupData = () => ({ app: 'ELM327 Scanner', tipo: 'backup', versao: 1, geradoEm: new Date().toISOString(), carro: profName(), config: cfg });
 function importBackup(txt){
   let o;
   try { o = JSON.parse(txt); } catch { alert('Arquivo inválido: não é um JSON.'); return; }
@@ -60,7 +60,7 @@ function importBackup(txt){
     Object.keys(c.alerts).length + ' alertas e a viagem (' + (c.vehicle.dist === 'gps' ? c.trip.kmGps : c.trip.kmObd).toFixed(1) + ' km).')) return;
   cfg = c;
   const name = str(o.carro, 80);
-  if (name){ $('carName').value = name; try { localStorage.setItem('carName', name); } catch {} }
+  if (name && !profOf().name) profOf().name = name;   // backup antigo, de antes dos veículos
   saveCfg(); refreshAll();
   alert('Backup importado.');
 }

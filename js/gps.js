@@ -57,7 +57,7 @@ function gpsStop(){
   store.set('c:gspd', null); gpsUi();
 }
 function gpsUi(){
-  for (const id of ['btnGps', 'btnGps2']){
+  for (const id of ['btnGps2']){
     const b = $(id); if (!b) continue;
     b.textContent = gps.on ? '📍 GPS: ligado' : '📍 Ligar GPS';
     b.classList.toggle('on', gps.on); b.setAttribute('aria-pressed', gps.on);
@@ -66,6 +66,6 @@ function gpsUi(){
 }
 function bindGps(){
   const toggle = () => gps.on ? gpsStop() : gpsStart();
-  $('btnGps').onclick = toggle; $('btnGps2').onclick = toggle;
+  $('btnGps2').onclick = toggle;
   gpsUi();
 }

@@ -43,7 +43,8 @@ function defaultCfg(){
   const pages = defaultPages().map(p => ({ name: p.name, w: p.w.map(cleanWidget) }));
   return {
     v: 1,
-    vehicle: { disp: 1.36, ve: 80, fuel: 'mix', ethanol: 50, price: 6.0, corr: 100, dist: 'obd', car: 'c3' },
+    vehicle: { disp: 1.4, ve: 80, fuel: 'mix', ethanol: 50, price: 6.0, corr: 100, dist: 'obd', car: 'carro1' },
+    profiles: [{ id: 'carro1', model: '', name: 'Meu carro', data: null }],
     pages, page: 0,
     alerts: { p05: { on: true, min: null, max: 110 }, atrv: { on: true, min: 11.8, max: 15.0 }, p42: { on: false, min: 12.5, max: 15.0 } },
     alertOpt: { sound: true, vibrate: true, notify: true, delay: 2 },
@@ -138,16 +139,45 @@ function cleanAlert(a){
   if (min == null && max == null) return null;
   return { on: !!a.on, min, max };
 }
+const ID_RE = /^[a-z0-9]{2,12}$/;
+function cleanVehicle(v, def){
+  if (!isObj(v)) v = {};
+  return {
+    disp: numIn(v.disp, 0.5, 8, def.disp), ve: numIn(v.ve, 40, 120, def.ve),
+    fuel: oneOf(v.fuel, FUELS, def.fuel), ethanol: numIn(v.ethanol, 0, 100, def.ethanol),
+    price: numIn(v.price, 0, 100, def.price), corr: numIn(v.corr, 50, 200, def.corr),
+    dist: oneOf(v.dist, DISTS, 'obd'), car: typeof v.car === 'string' && ID_RE.test(v.car) ? v.car : def.car
+  };
+}
+function cleanAlerts(o){
+  const out = {};
+  if (isObj(o)) for (const [k, a] of Object.entries(o).slice(0, 200)) if (KEY_RE.test(k)){ const c = cleanAlert(a); if (c) out[k] = c; }
+  return out;
+}
+// Veículos: o em uso vive em cfg.vehicle, cfg.alerts e cfg.trip; os outros guardam os seus em "data".
+// Linha de base, manutenção, abastecimentos e viagens já ficam separados pelo id do veículo.
+function cleanProfiles(o, d, legacyName){
+  const out = [];
+  for (const p of (Array.isArray(o) ? o : []).slice(0, 12)){
+    if (!isObj(p) || typeof p.id !== 'string' || !ID_RE.test(p.id) || out.some(x => x.id === p.id)) continue;
+    const q = { id: p.id, model: typeof p.model === 'string' && ID_RE.test(p.model) ? p.model : '', name: str(p.name, 40), data: null };
+    if (p.id !== d.vehicle.car && isObj(p.data))
+      q.data = { vehicle: cleanVehicle(p.data.vehicle, d.vehicle), alerts: cleanAlerts(p.data.alerts), trip: cleanTrip(p.data.trip) };
+    out.push(q);
+  }
+  if (!Array.isArray(o)){
+    // Antes dos perfis, o id do carro era o próprio modelo do catálogo: cada carro com dados vira um veículo
+    const ids = [d.vehicle.car, ...Object.keys(d.base), ...Object.keys(d.maint), ...d.fills.map(f => f.car), ...d.runs.map(r => r.car)];
+    for (const id of new Set(ids)) if (ID_RE.test(id) && out.length < 12)
+      out.push({ id, model: id, name: id === d.vehicle.car ? legacyName : '', data: null });
+  }
+  if (!out.some(p => p.id === d.vehicle.car)) out.unshift({ id: d.vehicle.car, model: '', name: legacyName, data: null });
+  return out;
+}
 function sanitizeCfg(o){
   const d = defaultCfg();
   if (!isObj(o)) return d;
-  const v = isObj(o.vehicle) ? o.vehicle : {};
-  d.vehicle = {
-    disp: numIn(v.disp, 0.5, 8, d.vehicle.disp), ve: numIn(v.ve, 40, 120, d.vehicle.ve),
-    fuel: oneOf(v.fuel, FUELS, d.vehicle.fuel), ethanol: numIn(v.ethanol, 0, 100, d.vehicle.ethanol),
-    price: numIn(v.price, 0, 100, d.vehicle.price), corr: numIn(v.corr, 50, 200, d.vehicle.corr),
-    dist: oneOf(v.dist, DISTS, 'obd'), car: typeof v.car === 'string' && /^[a-z0-9]{2,12}$/.test(v.car) ? v.car : d.vehicle.car
-  };
+  d.vehicle = cleanVehicle(o.vehicle, d.vehicle);
   if (Array.isArray(o.pages)){
     const pages = o.pages.slice(0, 12).filter(isObj).map(p => ({
       name: str(p.name, 30) || 'Painel', w: (Array.isArray(p.w) ? p.w : []).slice(0, 40).map(cleanWidget).filter(Boolean)
@@ -155,10 +185,7 @@ function sanitizeCfg(o){
     if (pages.length) d.pages = pages;
   }
   d.page = Math.round(numIn(o.page, 0, d.pages.length - 1, 0));
-  if (isObj(o.alerts)){
-    d.alerts = {};
-    for (const [k, a] of Object.entries(o.alerts).slice(0, 200)) if (KEY_RE.test(k)){ const c = cleanAlert(a); if (c) d.alerts[k] = c; }
-  }
+  if (isObj(o.alerts)) d.alerts = cleanAlerts(o.alerts);
   if (isObj(o.alertOpt)) d.alertOpt = {
     sound: o.alertOpt.sound !== false, vibrate: o.alertOpt.vibrate !== false, notify: o.alertOpt.notify !== false,
     delay: numIn(o.alertOpt.delay, 0, 30, 2)
@@ -183,6 +210,9 @@ function sanitizeCfg(o){
   // Abastecimentos antigos (sem carro) ficam com o carro em uso
   if (Array.isArray(o.fills)) d.fills = o.fills.slice(-300).map(cleanFill).filter(Boolean).map(f => ({ ...f, car: f.car || d.vehicle.car })).sort((a, b) => a.odo - b.odo);
   d.maint = cleanMaint(o.maint);
+  let legacyName = '';
+  try { legacyName = str(localStorage.getItem('carName'), 40); } catch {}
+  d.profiles = cleanProfiles(o.profiles, d, legacyName);
   return d;
 }
 

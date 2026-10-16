@@ -37,7 +37,7 @@ const BLE_PAIRS = {
 // Traduz os erros do Web Bluetooth para o que o usuário pode fazer
 function bleHint(e){
   const m = String(e?.message || e);
-  if (e?.name === 'NotFoundError') return 'Nenhum adaptador escolhido. Se a lista veio vazia: ligue a Localização do celular e, em Configurações → Apps → Chrome → Permissões, permita “Dispositivos por perto” (Samsung: “Dispositivos próximos”). Se o adaptador for Bluetooth clássico, use “Serial”.';
+  if (e?.name === 'NotFoundError') return 'Nenhum adaptador escolhido. Se a lista veio vazia: ligue a Localização do celular e, em Configurações → Apps → Chrome → Permissões, permita “Dispositivos por perto” (Samsung: “Dispositivos próximos”). Se o adaptador for Bluetooth clássico, use “Bluetooth clássico ou USB”.';
   if (e?.name === 'SecurityError') return 'O navegador bloqueou o Bluetooth nesta página. Abra o link direto no Chrome (HTTPS).';
   if (/GATT|connect|Connection|network/i.test(m)) return 'O adaptador não aceitou a conexão (' + m + '). Ele só atende um aparelho por vez: feche Torque, Car Scanner ou o app em outro celular, desligue o Bluetooth do outro celular, tire e recoloque o adaptador na tomada e tente de novo.';
   return m;
@@ -58,7 +58,7 @@ async function connectBLE(){
     } catch (e) {
       log('⚠ Tentativa ' + i + ' de conexão BLE: ' + e.message);
       try { device.gatt.disconnect(); } catch {}
-      if (e.name === 'NotFoundError'){ throw new Error('O dispositivo não expõe nenhum serviço serial conhecido (FFE0/FFF0/18F0). Pode ser Bluetooth clássico: tente “Serial”.'); }
+      if (e.name === 'NotFoundError'){ throw new Error('O dispositivo não expõe nenhum serviço serial conhecido (FFE0/FFF0/18F0). Pode ser Bluetooth clássico: tente “Bluetooth clássico ou USB”.'); }
       if (i >= 3) throw new Error(bleHint(e));
       await sleep(1000 * i);
     }
@@ -219,9 +219,10 @@ function log(s){
 function setStatus(kind, txt){ $('dot').className = 'dot ' + kind; $('statusTxt').textContent = txt; }
 function setConnected(on){
   document.querySelectorAll('[data-conn]').forEach(b => b.disabled = !on);
-  $('btnBle').disabled = on || !env.ble;
-  $('btnSerial').disabled = on || !env.serial;
-  $('btnDemo').disabled = on;
+  $('btnConn').textContent = on ? 'Desconectar' : 'Conectar';
+  $('btnConn').classList.toggle('primary', !on);
+  $('btnBle').disabled = !env.ble; $('btnSerial').disabled = !env.serial;
+  $('intro').hidden = on;
 }
 function download(name, text, type = 'text/plain'){
   const a = document.createElement('a');
@@ -230,12 +231,19 @@ function download(name, text, type = 'text/plain'){
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 
-document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => {
-  document.querySelectorAll('.tabs button').forEach(x => x.setAttribute('aria-selected', x === b));
-  document.querySelectorAll('section.tab').forEach(s => s.classList.toggle('on', s.id === b.dataset.tab));
-  if (b.dataset.tab === 'tensao') draw();
-  dispatchEvent(new CustomEvent('tab', { detail: b.dataset.tab }));
-});
+// Navegação: uma tela por vez, com o nome no endereço (#falhas) para o botão Voltar do celular funcionar
+const TOP = ['painel', 'viagens', 'falhas', 'ferramentas', 'ajustes'];
+function showTab(id){
+  if (!$(id)?.classList.contains('tab')) id = 'painel';
+  document.querySelectorAll('section.tab').forEach(s => s.classList.toggle('on', s.id === id));
+  const top = TOP.includes(id) ? id : $(id).dataset.parent;
+  document.querySelectorAll('.bnav [data-go]').forEach(b => b.setAttribute('aria-current', b.dataset.go === top ? 'page' : 'false'));
+  scrollTo(0, 0);
+  if (id === 'tensao') draw();
+  dispatchEvent(new CustomEvent('tab', { detail: id }));
+}
+function go(id){ if (location.hash.slice(1) === id) showTab(id); else location.hash = id; }
+addEventListener('hashchange', () => showTab(location.hash.slice(1)));
 const tabOpen = id => $(id).classList.contains('on');
 
 async function connect(fn){
@@ -800,7 +808,7 @@ function pack(k){
   const [titulo, fn] = EXPORTS[k];
   return {
     app: 'ELM327 Scanner', conteudo: titulo, geradoEm: new Date().toISOString(),
-    veiculo: $('carName').value.trim() || null,
+    veiculo: profName(),
     adaptador: ficha.adaptador['Versão (ATI)'] || null,
     protocolo: ficha.veiculo['Protocolo'] || PROTO[state.proto] || null,
     dados: fn()
@@ -841,13 +849,4 @@ async function exportAction(k, action, out){
     AIS.map(([n, u, q]) => '<a target="_blank" rel="noopener" href="' + esc(u + (q && fits ? encodeURIComponent(text) : '')) + '">' + n + '</a>' +
       (fits && !q ? ' (cole o texto)' : '')).join(' · ');
 }
-document.querySelectorAll('[data-export]').forEach(el => {
-  const k = el.dataset.export, out = document.createElement('p');
-  out.className = 'xout'; out.setAttribute('aria-live', 'polite');
-  el.after(out);
-  el.innerHTML = '<button data-a="copy">Copiar JSON</button><button data-a="dl">Baixar JSON</button><button data-a="ai" class="ai">Perguntar à IA</button>';
-  el.onclick = e => { const a = e.target.closest('button')?.dataset.a; if (a) exportAction(k, a, out); };
-});
-try { const saved = localStorage.getItem('carName'); if (saved) $('carName').value = saved; } catch {}
-$('carName').addEventListener('change', () => { try { localStorage.setItem('carName', $('carName').value); } catch {} });
 

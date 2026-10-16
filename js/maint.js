@@ -8,7 +8,7 @@ function maintOf(car = cfg.vehicle.car){
   if (!cfg.maint[car]){
     const items = MAINT_ITEMS.map(name => ({ id: uid(), name, every: null, last: null, lastT: 0 }));
     // Direção hidráulica (Mobi) tem fluido próprio
-    if (/^mobi/.test(car)) items.push({ id: uid(), name: 'Fluido da direção hidráulica', every: null, last: null, lastT: 0 });
+    if (isMobi(car)) items.push({ id: uid(), name: 'Fluido da direção hidráulica', every: null, last: null, lastT: 0 });
     cfg.maint[car] = { odo: null, items };
   }
   return cfg.maint[car];
@@ -42,7 +42,7 @@ function maintDue(){
 function renderMaint(){
   if (!$('mList')) return;
   const m = maintOf(), o = odoNow();
-  $('mCar').textContent = 'Carro: ' + (CARS[cfg.vehicle.car]?.nome || 'personalizado') + ' (troque o carro nas abas C3, Mobi ou Duster).';
+  $('mCar').textContent = 'Veículo: ' + profName() + '. Para trocar, toque no nome do carro no topo.';
   $('mOdo').placeholder = o ? String(o.km) : 'ex.: 85400';
   $('mOdoInfo').innerHTML = !o ? 'Informe o km do painel para o app acompanhar as trocas.'
     : 'Agora: <b>' + fmtKm(o.km) + '</b> · ' + (o.base.fill ? 'do abastecimento' : 'informado') + ' em ' + new Date(o.base.t).toLocaleDateString() +

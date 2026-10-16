@@ -67,6 +67,7 @@ addEventListener('disconnected', () => { Object.assign(health, { checked: false,
 
 function healthBar(){
   const el = $('healthBar'), all = [...health.stored, ...health.pending];
+  $('navFalhas').classList.toggle('badge', health.checked && (all.length > 0 || !!health.mil));
   if (!health.checked || (!all.length && !health.mil)){ el.hidden = true; return; }
   const first = health.fresh[0] || all[0], p = first ? dtcPlain(first) : null;
   el.hidden = false;
@@ -78,7 +79,7 @@ function healthBar(){
 $('healthBar').onclick = e => {
   if (e.target.closest('[data-x]')) $('healthBar').hidden = true;
   if (e.target.closest('[data-go]')){
-    document.querySelector('.tabs [data-tab="falhas"]').click();
+    go('falhas');
     if (health.stored.length || !health.pending.length) renderDTC('03', health.stored); else renderDTC('07', health.pending);
   }
 };

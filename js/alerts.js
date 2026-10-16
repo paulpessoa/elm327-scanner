@@ -106,7 +106,7 @@ async function notify(title, body, tag, loud){
   } catch { return false; }
 }
 
-/* ---- Lista de alertas (aba Ajustes) ---- */
+/* ---- Lista de alertas (tela Veículos: cada carro tem os seus) ---- */
 function renderAlertList(){
   const el = $('alertList'); if (!el) return;
   const rows = Object.entries(cfg.alerts).filter(([k]) => sensorDef(k));

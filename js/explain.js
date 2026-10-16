@@ -18,7 +18,7 @@ function ctxNow(){
     cut: typeof fs === 'string' && /desacelera/i.test(fs)
   };
 }
-const mobi = c => /^mobi/.test(c.car);
+const mobi = c => isMobi(c.car);
 const SHIFT_TIP = 'No câmbio manual, trocar de marcha antes de uns 2.500–3.000 rpm costuma economizar no dia a dia.';
 // Conta quantas vezes o sinal cruzou um nível nos últimos ms (para julgar as sondas lambda)
 function crossings(k, ms, lvl){
@@ -72,7 +72,7 @@ const EXPLAIN = {
     causes: ['Esquentando demais: falta de água, ventoinha que não liga, bomba d’água, válvula termostática fechada, radiador sujo.', 'Não esquenta: válvula termostática aberta ou sensor de temperatura.']
   },
   atrv: { what: 'Tensão elétrica medida na tomada do OBD. Com o motor desligado mostra a carga da bateria; ligado, mostra se o alternador está carregando.', judge: VOLT(),
-    causes: ['Adaptadores baratos podem errar de 0,2 a 0,5 V. Para ter certeza, meça na bateria com um multímetro (aba Tensão).'] },
+    causes: ['Adaptadores baratos podem errar de 0,2 a 0,5 V. Para ter certeza, meça na bateria com um multímetro (Ferramentas → Tensão).'] },
   p42: { what: 'Tensão que chega na central do motor. Deve acompanhar a da bateria.', judge: VOLT() },
   p0C: {
     what: 'Giro do motor: quantas voltas por minuto ele está dando.',
@@ -108,14 +108,14 @@ const EXPLAIN = {
   },
   p0F: { what: 'Temperatura do ar que entra no motor.', judge: v => ['info', 'Costuma ficar alguns graus acima da temperatura de fora. Parado no trânsito sobe, pelo calor do motor. Ar mais quente dá um pouco menos de potência.'] },
   p11: { what: 'Quanto a borboleta (a “porta” do ar) está aberta. Pé solto: baixa. Pé no fundo: perto do máximo, que nem sempre é 100 %.', judge: () => ['info', 'Acompanha o pedal do acelerador.'] },
-  p0D: { what: 'Velocidade que o carro informa, vinda do sensor do câmbio ou das rodas.', judge: () => ['info', 'O velocímetro costuma marcar um pouco mais que o real. Em Ajustes, ligue o GPS para comparar.'] },
+  p0D: { what: 'Velocidade que o carro informa, vinda do sensor do câmbio ou das rodas.', judge: () => ['info', 'O velocímetro costuma marcar um pouco mais que o real. Em Veículos, ligue o GPS para comparar.'] },
   p14: {
     what: 'Sonda lambda <b>antes</b> do catalisador: mede o oxigênio no escape. É por ela que a central acerta a mistura. Com motor quente deve subir e descer entre ~0,1 e ~0,9 V várias vezes por segundo.',
     judge: (v, c) => {
       if (c.closed === false) return ['info', 'Malha aberta agora: com motor frio, pé no fundo ou desacelerando, a sonda fica parada, e é normal.'];
       const x = crossings('p14', 10000, 0.45);
-      if (x.len < 10) return ['info', 'Poucas leituras para julgar. Abra a aba Sondas, que lê esta sonda com prioridade.'];
-      return x.n >= 4 ? ['ok', 'Está oscilando (' + x.n + ' trocas em 10 s). Sinal de sonda viva.'] : ['warn', 'Quase parada (' + x.n + ' trocas em 10 s). Confirme na aba Sondas com o motor quente em lenta.'];
+      if (x.len < 10) return ['info', 'Poucas leituras para julgar. Abra Ferramentas → Sondas, que lê esta sonda com prioridade.'];
+      return x.n >= 4 ? ['ok', 'Está oscilando (' + x.n + ' trocas em 10 s). Sinal de sonda viva.'] : ['warn', 'Quase parada (' + x.n + ' trocas em 10 s). Confirme em Ferramentas → Sondas com o motor quente em lenta.'];
     },
     causes: ['Parada perto de 0,45 V: sonda morta ou fiação. Sempre baixa: mistura pobre ou entrada de ar. Sempre alta: mistura rica.']
   },
@@ -130,11 +130,11 @@ const EXPLAIN = {
   p03: { what: 'Mostra se a central está corrigindo a mistura pela sonda lambda (malha fechada) ou usando valores fixos (malha aberta).',
     judge: (v, c) => /fechada/i.test(v) && !/falha/i.test(v) ? ['ok', 'Malha fechada: funcionamento normal com motor quente.']
       : /desacelera|carga/i.test(v) ? ['info', 'Malha aberta por aceleração forte ou desaceleração. Normal.']
-      : /frio/i.test(v) ? ['info', 'Malha aberta porque o motor está frio. Normal até esquentar.'] : ['warn', 'Malha aberta por falha: leia os códigos na aba Falhas.'] },
+      : /frio/i.test(v) ? ['info', 'Malha aberta porque o motor está frio. Normal até esquentar.'] : ['warn', 'Malha aberta por falha: leia os códigos em Falhas.'] },
   p2F: { what: 'Nível do tanque, pela boia. Nem todo carro informa.', judge: v => v < 15 ? ['warn', 'Na reserva. Rodar sempre na reserva pode puxar sujeira do fundo do tanque.'] : ['ok', 'Ok.'] },
   p5C: { what: 'Temperatura do óleo do motor.', judge: v => v > 130 ? ['bad', 'Óleo muito quente. Pare e confira nível de óleo e água.'] : ['info', 'Sobe mais devagar que a água. Evite exigir do motor com o óleo frio.'] },
   p1F: { what: 'Tempo desde que o motor foi ligado.', judge: () => ['info', 'Útil para saber se o motor já teve tempo de esquentar.'] },
-  p21: { what: 'Quantos km foram rodados com a luz de injeção acesa.', judge: v => v > 0 ? ['warn', 'Já rodou ' + v + ' km com a luz de injeção acesa. Leia os códigos na aba Falhas.'] : ['ok', 'Nenhum km com a luz acesa.'] },
+  p21: { what: 'Quantos km foram rodados com a luz de injeção acesa.', judge: v => v > 0 ? ['warn', 'Já rodou ' + v + ' km com a luz de injeção acesa. Leia os códigos em Falhas.'] : ['ok', 'Nenhum km com a luz acesa.'] },
   p31: { what: 'Km rodados desde que os códigos de falha foram apagados (ou a bateria foi desligada).', judge: v => v < 50 ? ['info', 'Poucos km: os testes internos da central (monitores) podem não ter terminado. Isso importa em vistoria.'] : ['info', 'Ok.'] },
   p33: { what: 'Pressão do ar de fora.', judge: () => ['info', 'Cai com a altitude: ao nível do mar fica perto de 101 kPa.'] },
   p44: { what: 'Mistura que a central está pedindo. 1,00 = mistura ideal; abaixo de 1 = mais combustível (rica); acima = menos (pobre).', judge: v => ['info', v < 0.97 ? 'Pedindo mistura rica: normal acelerando forte ou com motor frio.' : 'Mistura ideal ou perto.'] },
@@ -144,21 +144,21 @@ const EXPLAIN = {
 
   'c:kml': { what: 'Quantos km o carro faria com 1 litro <b>se continuasse exatamente como agora</b>. Muda o tempo todo: arrancada e subida derrubam; descida e velocidade constante sobem. Parado não existe km/L (mostra --).',
     judge: (v, c) => c.cut ? ['ok', 'Corte de combustível: marcha engatada e pé fora do acelerador, a injeção desliga e o consumo vai a zero.'] : ['info', 'Para saber quanto o carro faz de verdade, olhe a média da viagem ou do último km.'] },
-  'c:avg': { what: 'Média da viagem: km rodados ÷ litros gastos desde que você zerou a viagem (em Ajustes).', judge: () => ['info', calibNote()] },
+  'c:avg': { what: 'Média da viagem: km rodados ÷ litros gastos desde que você zerou a viagem (em Veículos).', judge: () => ['info', calibNote()] },
   'c:kml1': { what: 'Média do último quilômetro completo: 1 km ÷ litros gastos nele.', judge: () => ['info', 'Bom para ver o efeito de um trecho: subida, trânsito, estrada. ' + calibNote()] },
   'c:l100': { what: 'Litros a cada 100 km na viagem (o jeito europeu). Quanto <b>menor</b>, melhor.', judge: () => ['info', calibNote()] },
   'c:lph': { what: 'Litros por hora que o motor está gastando agora. Parado em marcha lenta, mostra quanto custa ficar com o carro ligado.', judge: (v, c) => c.idle ? ['info', 'Parado: em paradas longas, desligar o motor economiza esse valor.'] : ['info', calibNote()] },
-  'c:km': { what: 'Distância da viagem, pela fonte escolhida em Ajustes (OBD ou GPS).', judge: () => ['info', 'Zera em Ajustes → Zerar viagem.'] },
+  'c:km': { what: 'Distância da viagem, pela fonte escolhida em Veículos (OBD ou GPS).', judge: () => ['info', 'Zera em Veículos → Zerar viagem.'] },
   'c:kmo': { what: 'Distância somando a velocidade que o carro informa.', judge: () => ['info', 'Costuma marcar um pouco a mais que o real, como o velocímetro.'] },
   'c:kmg': { what: 'Distância medida pelo GPS do celular.', judge: () => ['info', 'Só conta com sinal bom (até ±25 m) e com o carro andando.'] },
   'c:fuel': { what: 'Litros gastos desde que você zerou a viagem.', judge: () => ['info', calibNote()] },
-  'c:cost': { what: 'Custo da viagem: litros × preço por litro (Ajustes).', judge: () => ['info', 'Preço atual: R$ ' + cfg.vehicle.price.toFixed(2) + '/L. Mudar o preço recalcula a viagem inteira.'] },
+  'c:cost': { what: 'Custo da viagem: litros × preço por litro (Veículos).', judge: () => ['info', 'Preço atual: R$ ' + cfg.vehicle.price.toFixed(2) + '/L. Mudar o preço recalcula a viagem inteira.'] },
   'c:maf': { what: 'Massa de ar calculada (ou lida do sensor MAF). É a base do cálculo de consumo.', judge: () => ['info', 'Informação.'] },
   'c:gspd': { what: 'Velocidade medida pelo GPS do celular.', judge: () => ['info', 'Costuma ser mais fiel que a do velocímetro em velocidade constante.'] },
   'c:gacc': { what: 'Margem de erro da posição do GPS, em metros.', judge: v => v <= 10 ? ['ok', 'Sinal ótimo.'] : v <= 25 ? ['ok', 'Sinal bom.'] : ['warn', 'Sinal fraco: a distância pelo GPS fica pausada até melhorar.'] }
 };
 function calibNote(){
-  return cfg.vehicle.corr === 100 ? 'Os litros são calculados, não medidos. Ainda não calibrado pelo posto: calibre em Ajustes para o número ficar confiável.'
+  return cfg.vehicle.corr === 100 ? 'Os litros são calculados, não medidos. Ainda não calibrado pelo posto: calibre em Veículos para o número ficar confiável.'
     : 'Os litros são calculados e já foram calibrados pelo posto (fator ' + cfg.vehicle.corr.toFixed(0) + ' %).';
 }
 
@@ -201,7 +201,7 @@ function renderInfo(){
     (x.what ? '<h3>O que é</h3><p>' + x.what + '</p>' : '') +
     (x.base ? '<h3>Comparando com o seu carro</h3><p>' + x.base + '</p>' : '') +
     (x.causes.length ? '<h3>Se estiver fora do normal</h3><ul>' + x.causes.map(t => '<li>' + t + '</li>').join('') + '</ul>' : '') +
-    '<p class="small muted">Faixas gerais para motor a gasolina ou flex em bom estado, não são dados de fábrica. Na aba do seu carro, grave a linha de base para ter a referência dele.</p>';
+    '<p class="small muted">Faixas gerais para motor a gasolina ou flex em bom estado, não são dados de fábrica. Em Veículos (toque no nome do carro no topo), grave a linha de base para ter a referência dele.</p>';
 }
 $('infoClose').onclick = () => $('infoDlg').close();
 $('infoDlg').addEventListener('click', e => { if (e.target === $('infoDlg')) $('infoDlg').close(); });
