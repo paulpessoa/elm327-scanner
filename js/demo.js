@@ -6,7 +6,7 @@ function connectDemo(){
   const t0 = performance.now();
   let last = t0, phase = 0, postV = 0.68, temp = 38;
   const SUP = [0x01, 0x03, 0x04, 0x05, 0x06, 0x07, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x11, 0x13, 0x14, 0x15, 0x1C, 0x1F, 0x20,
-    0x21, 0x2F, 0x33, 0x40, 0x42, 0x46, 0x51];
+    0x21, 0x2F, 0x30, 0x31, 0x33, 0x40, 0x42, 0x46, 0x4E, 0x51];
   const bitmap = base => { let b = 0; for (const p of SUP) if (p > base && p <= base + 32) b |= 1 << (32 - (p - base)); return (b >>> 0).toString(16).toUpperCase().padStart(8, '0'); };
   const VIN = '935FCKFVZAB123456';
   const rnd = a => (Math.random() * 2 - 1) * a;
@@ -57,6 +57,9 @@ function connectDemo(){
       case 0x1F: return hx16(s.t);
       case 0x21: return '0000';
       case 0x2F: return hx(62 * 2.55);
+      case 0x30: return hx(118);
+      case 0x31: return hx16(3898);
+      case 0x4E: return hx16(6120);
       case 0x33: return hx(95);
       case 0x42: return hx16(14100 + rnd(60));
       case 0x46: return hx(28 + 40);
@@ -85,6 +88,7 @@ function connectDemo(){
     if (c.startsWith('AT')) return ['OK'];
     if (c === '03') return ['4300'];
     if (c === '07') return ['4700'];
+    if (c === '0A') return ['4A00'];
     if (c === '04') return ['44'];
     if (c === '0902'){
       const hex = '490201' + [...VIN].map(ch => ch.charCodeAt(0).toString(16).toUpperCase()).join('');

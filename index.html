@@ -75,9 +75,12 @@
 
   <!-- VIAGENS -->
   <section id="viagens" class="tab" role="region" aria-label="Viagens">
-    <p class="small">Cada vez que você conecta o adaptador, o app grava uma viagem: distância, consumo, quanto tempo ficou parado e como foi o pé no acelerador. Ao desconectar, ela aparece aqui com dicas.</p>
+    <p class="small">Cada vez que você conecta o adaptador, o app grava uma viagem: distância, consumo, quanto tempo ficou parado e como foi o pé no acelerador. Ao desconectar, ela aparece aqui com dicas, e dá para <b>rever a viagem</b> momento a momento.</p>
     <p id="runNow" class="small muted" aria-live="polite"></p>
+    <div class="row"><button id="btnRunGo" data-conn disabled>● Começar viagem agora</button></div>
     <label class="small chk"><input type="checkbox" id="runAuto"> Gravar viagens automaticamente ao conectar</label>
+    <label class="small chk"><input type="checkbox" id="runMotion"> Medir as curvas com o sensor de movimento (celular preso no suporte)</label>
+    <p id="motMsg" class="small muted" aria-live="polite"></p>
 
     <h2>Resumo</h2>
     <div id="runSum" class="stats four"></div>
@@ -91,11 +94,13 @@
       <div class="tw"><table>
         <tr><td>Aceleração forte</td><td>Ganhar velocidade a mais de 2,5 m/s² (ex.: de 0 a 36 km/h em 4 s). Saindo de menos de 20 km/h conta como arrancada.</td></tr>
         <tr><td>Frenagem forte</td><td>Perder velocidade a mais de 3,5 m/s² (ex.: de 60 a 0 em menos de 5 s).</td></tr>
+        <tr><td>Curva forte</td><td>Força lateral acima de 0,35 g por 1 s ou mais, andando acima de 20 km/h. Só conta com a opção do sensor de movimento ligada.</td></tr>
         <tr><td>Giro alto</td><td>Andando acima de 3.000 rpm.</td></tr>
-        <tr><td><span class="lvl lvl-ok">Pé leve</span></td><td>Menos de 1,5 acelerações/frenagens fortes a cada 10 km e menos de 5% do tempo em giro alto.</td></tr>
+        <tr><td><span class="lvl lvl-ok">Pé leve</span></td><td>Menos de 1,5 acelerações, frenagens ou curvas fortes a cada 10 km e menos de 5% do tempo em giro alto.</td></tr>
         <tr><td><span class="lvl lvl-bad">Pé pesado</span></td><td>Mais de 4 a cada 10 km ou mais de 15% do tempo em giro alto.</td></tr>
       </table></div>
       <p class="small muted">Critérios do app, pensados para carros 1.0 a 2.0 de passeio. A velocidade vem do OBD (ou do GPS), lida algumas vezes por segundo: eventos muito curtos podem escapar.</p>
+      <p class="small muted">Curvas: o celular mede a aceleração no plano do chão e o app desconta a parte de frente e trás (que a velocidade do OBD já dá). O que sobra é a força lateral. Funciona em qualquer posição do suporte, desde que o celular fique firme.</p>
     </details>
     <div class="row">
       <button id="btnRunClr" class="danger">Apagar histórico de viagens</button>
@@ -172,12 +177,68 @@
   <section id="ferramentas" class="tab" role="region" aria-label="Ferramentas">
     <p class="small muted">Diagnóstico mais detalhado. No dia a dia, o Painel e as Falhas bastam.</p>
     <div class="tools">
+      <button data-go="vistoria"><b>Vistoria de usado</b><span>Laudo em 2 minutos para quem vai comprar um carro: falhas e sinais de códigos apagados</span></button>
       <button data-go="sondas"><b>Sondas lambda</b><span>Osciloscópio, índice do catalisador e teste de resposta</span></button>
       <button data-go="vivo"><b>Sensores</b><span>Tudo o que a central informa, ao vivo, com gravação em CSV</span></button>
       <button data-go="tensao"><b>Tensão</b><span>Bateria e alternador, com gráfico e calibração</span></button>
       <button data-go="ficha"><b>Ficha</b><span>Adaptador, protocolo, sensores suportados e chassi</span></button>
       <button data-go="log"><b>Log</b><span>Conversa com o adaptador e comando manual</span></button>
       <button data-go="ref"><b>Referência</b><span>Conector, protocolos, comandos e problemas comuns</span></button>
+    </div>
+  </section>
+
+  <!-- VISTORIA -->
+  <section id="vistoria" class="tab" role="region" data-parent="ferramentas" data-title="Vistoria de usado">
+    <p class="small">Para levar na hora de comprar um carro usado. O app confere o que a central do motor guarda: falhas (inclusive as <b>permanentes</b>, que não saem com scanner), sinais de que os códigos foram <b>apagados há pouco</b> para esconder um defeito, bateria, temperatura e mistura.</p>
+    <ol class="steps small">
+      <li>Peça para ligar o carro <b>frio</b>, se puder: é quando os defeitos aparecem.</li>
+      <li>Com o motor ligado e parado, conecte o adaptador e toque em <b>Fazer vistoria</b>. Leva uns 40 segundos; não acelere nem desligue o carro até terminar.</li>
+      <li>Depois de uns 10 minutos (motor quente), faça de novo: mistura e marcha lenta só valem com o motor quente.</li>
+    </ol>
+    <div class="row"><button id="btnInsp" class="primary" data-conn disabled>Fazer vistoria</button></div>
+    <p id="inspStep" class="small muted" aria-live="polite"></p>
+    <div id="inspOut"></div>
+    <div class="row" id="inspActs" hidden>
+      <button id="btnInspPrint">Salvar em PDF ou imprimir</button>
+      <button id="btnInspShare">Compartilhar ou perguntar à IA</button>
+    </div>
+    <details>
+      <summary>Como o app percebe que os códigos foram apagados</summary>
+      <p class="small">Ao apagar os códigos, a central zera três contadores: <b>km desde a limpeza</b>, <b>partidas a frio desde a limpeza</b> e <b>tempo desde a limpeza</b>. Ela também volta os <b>monitores de prontidão</b> para “incompleto” até refazer os testes, o que leva alguns dias rodando. Com menos de 200 km ou menos de 10 partidas a frio, o app avisa.</p>
+      <p class="small">Já as <b>falhas permanentes</b> (modo 0A) só saem quando a própria central confirma, rodando, que o defeito foi resolvido. Uma permanente sem nenhuma armazenada quer dizer que alguém apagou sem consertar.</p>
+      <p class="small muted">É indício, não prova: trocar ou desligar a bateria tem o mesmo efeito. Nem todo carro informa esses contadores (os mais antigos e muitos K-line, não).</p>
+    </details>
+  </section>
+
+  <!-- REVER VIAGEM -->
+  <section id="replay" class="tab" role="region" data-parent="viagens" data-title="Rever viagem">
+    <p id="rpHead" class="small muted"></p>
+    <div id="rpBody" hidden>
+      <div class="rpbar">
+        <button id="rpPlay" class="primary" aria-label="Tocar ou pausar">▶</button>
+        <input id="rpPos" type="range" min="0" max="1000" value="0" aria-label="Momento da viagem">
+      </div>
+      <p id="rpTime" class="small rptime" aria-live="off"></p>
+      <div class="row ctl">
+        <label>Velocidade <select id="rpSpeed"><option value="1">1× (tempo real)</option><option value="4">4×</option><option value="16" selected>16×</option><option value="60">60×</option></select></label>
+        <label>Mostradores da página <select id="rpPage"></select></label>
+      </div>
+      <canvas id="rpLine" class="rpline" aria-label="Velocidade e giro ao longo da viagem. Toque para ir até um momento."></canvas>
+      <p class="small muted rpleg"><span class="c-spd">━ velocidade</span> <span class="muted">━ giro</span> <span class="c-acc">▲ aceleração forte</span> <span class="c-brk">▼ frenagem forte</span> <span class="c-crv">◆ curva forte</span> · toque para ir até o momento</p>
+      <div id="rpGrid" class="grid"></div>
+      <p id="rpMiss" class="small muted"></p>
+      <div id="rpMapBox" hidden>
+        <h3>Trajeto pelo GPS</h3>
+        <canvas id="rpMap" class="rpmap" aria-label="Trajeto da viagem colorido pela velocidade"></canvas>
+        <p class="small muted">Cor pela velocidade: <span class="c-spd">azul devagar</span>, <span class="c-acc">amarelo</span>, <span class="c-brk">vermelho a 120 km/h ou mais</span>. O ponto verde é a saída. Sem mapa de fundo: o app não baixa nada da internet.</p>
+      </div>
+      <h3>Momentos marcados</h3>
+      <div id="rpEvents" class="rpevs"></div>
+      <div class="row">
+        <button id="rpCsv">Baixar gravação (CSV)</button>
+        <button id="rpDel" class="danger">Apagar gravação</button>
+      </div>
+      <p class="small muted">A gravação fica só neste aparelho, com as 30 viagens mais recentes. Ela não vai no backup e é apagada em “Apagar dados deste aparelho”.</p>
     </div>
   </section>
 
@@ -591,7 +652,7 @@
     </details>
 
     <h2>Backup e outro aparelho</h2>
-    <p class="small">Não há conta nem servidor: painéis, alertas, viagem e ajustes ficam só neste navegador. Para levar a outro celular, exporte o backup e importe lá.</p>
+    <p class="small">Não há conta nem servidor: painéis, alertas, viagem e ajustes ficam só neste navegador. Para levar a outro celular, exporte o backup e importe lá. As gravações das viagens (com o trajeto do GPS) ficam de fora do backup.</p>
     <div class="row">
       <button id="btnBkDl">Baixar backup (.json)</button>
       <button id="btnBkCopy">Copiar backup</button>
@@ -713,6 +774,9 @@
 <script src="js/maint.js"></script>
 <script src="js/settings.js"></script>
 <script src="js/demo.js"></script>
+<script src="js/motion.js"></script>
+<script src="js/rec.js"></script>
+<script src="js/inspect.js"></script>
 <script src="js/nav.js"></script>
 <script src="js/main.js"></script>
 </body>

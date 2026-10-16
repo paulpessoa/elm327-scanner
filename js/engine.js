@@ -8,7 +8,7 @@
 const LEN = {};
 (() => {
   const set = (n, list) => list.forEach(p => LEN[p] = n);
-  set(4, [0x00, 0x20, 0x40, 0x60, 0x80, 0xA0, 0x01, 0x41, 0x4F, 0x50]);
+  set(4, [0x00, 0x20, 0x40, 0x60, 0x80, 0xA0, 0x01, 0x41, 0x4F, 0x50, 0xA6]);
   set(2, [0x02, 0x03, 0x0C, 0x10, 0x1F, 0x21, 0x22, 0x23, 0x31, 0x32, 0x3C, 0x3D, 0x3E, 0x3F, 0x42, 0x43, 0x44, 0x4D, 0x4E,
     0x53, 0x54, 0x55, 0x56, 0x57, 0x58, 0x59, 0x5D, 0x5E]);
   set(1, [0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0D, 0x0E, 0x0F, 0x11, 0x12, 0x13, 0x1C, 0x1D, 0x1E,
@@ -25,7 +25,8 @@ const META = {
   0x0D:{ r:[0,200], d:0 }, 0x0E:{ r:[-20,50], ok:[5,20], d:1 }, 0x0F:{ r:[-20,80], d:0 }, 0x10:{ r:[0,150], d:1 },
   0x11:{ r:[0,100], d:0 }, 0x1F:{ r:[0,3600], d:0 }, 0x21:{ r:[0,1000], d:0 }, 0x2F:{ r:[0,100], d:0 },
   0x33:{ r:[60,110], d:0 }, 0x42:{ r:[10,16], ok:[13.5,14.8], d:2 }, 0x43:{ r:[0,100], d:0 }, 0x44:{ r:[0.7,1.3], ok:[0.97,1.03], d:3 },
-  0x46:{ r:[-10,50], d:0 }, 0x52:{ r:[0,100], d:0 }, 0x5C:{ r:[-40,150], ok:[80,110], d:0 }, 0x5E:{ r:[0,30], d:1 }
+  0x46:{ r:[-10,50], d:0 }, 0x52:{ r:[0,100], d:0 }, 0x5C:{ r:[-40,150], ok:[80,110], d:0 }, 0x5E:{ r:[0,30], d:1 },
+  0xA6:{ r:[0,300000], d:0 }
 };
 [0x06, 0x07, 0x08, 0x09, 0x55, 0x56, 0x57, 0x58].forEach(p => META[p] = { r:[-25,25], ok:[-10,10], d:1 });
 [0x3C, 0x3D, 0x3E, 0x3F].forEach(p => META[p] = { r:[0,1000], ok:[350,800], d:0 });
@@ -46,7 +47,8 @@ const CALC = {
   'c:kmo':  { name:'Distância pelo OBD', unit:'km', r:[0,500], d:2 },
   'c:kmg':  { name:'Distância pelo GPS', unit:'km', r:[0,500], d:2 },
   'c:gspd': { name:'Velocidade (GPS)', unit:'km/h', r:[0,200], d:0 },
-  'c:gacc': { name:'Precisão do GPS', unit:'m', r:[0,50], ok:[0,20], d:0 }
+  'c:gacc': { name:'Precisão do GPS', unit:'m', r:[0,50], ok:[0,20], d:0 },
+  'c:glat': { name:'Força lateral (celular)', unit:'g', r:[0,1], ok:[0,0.3], d:2 }
 };
 const UNIT_R = { '%':[0,100], '°C':[-40,130], 'kPa':[0,110], 'V':[0,16], 'λ':[0.7,1.3], 'rpm':[0,7000], 'km/h':[0,200], '°':[-20,50] };
 
@@ -124,7 +126,7 @@ function deps(k){
     case 'c:lph': return lph;
     case 'c:km': return spd;
     case 'c:kmo': return ['p0D'];
-    case 'c:kmg': case 'c:gspd': case 'c:gacc': return [];
+    case 'c:kmg': case 'c:gspd': case 'c:gacc': case 'c:glat': return [];
     case 'c:kml': return [...lph, 'p0D'];
     case 'c:avg': case 'c:fuel': case 'c:cost': case 'c:kml1': case 'c:l100': return [...lph, ...spd];
   }

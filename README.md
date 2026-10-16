@@ -22,7 +22,9 @@ Para chegar na oficina sabendo o que o carro está dizendo. O app lê o que a ce
 - **Modo simples** (padrão em instalação nova): um “Tudo certo / Atenção / Procure um mecânico” e quatro cartões grandes (água, bateria, consumo agora e média). O painel completo continua a um toque.
 - **Falhas conferidas ao conectar**: lê os códigos armazenados e pendentes, avisa quando aparece um código novo e explica os mais comuns em português simples.
 - **Botão “i” em cada sensor**: explica em linguagem simples o que é o valor, se está normal agora (com motor frio/quente, lenta ou andando), causas comuns quando está fora e a comparação com a linha de base do seu carro.
-- **Viagens**: uma por conexão, com km, km/L, custo, tempo parado, giro alto, acelerações/frenagens fortes, avaliação do estilo (pé leve, moderado, pesado) e dicas. Comparação de consumo entre estilos.
+- **Vistoria de usado** (Ferramentas): laudo em uns 40 segundos para quem vai comprar um carro. Junta falhas armazenadas, pendentes e **permanentes** (as que o scanner não apaga), sinais de **códigos apagados há pouco** (km e partidas a frio desde a limpeza, monitores incompletos), bateria, temperatura, mistura, marcha lenta, chassi e, se o carro informar, o hodômetro da central. Salva em PDF.
+- **Viagens**: uma por conexão, com km, km/L, custo, tempo parado, giro alto, acelerações, frenagens e **curvas** fortes, avaliação do estilo (pé leve, moderado, pesado) e dicas. Comparação de consumo entre estilos. As curvas vêm do sensor de movimento do celular preso no suporte (opcional).
+- **Rever a viagem**: cada viagem grava as leituras, o trajeto do GPS e os eventos. Dá para tocar de novo em 1× a 60×, com os mostradores do seu painel, uma linha do tempo com velocidade, giro e eventos, e o trajeto colorido pela velocidade. Também dá para baixar em CSV. Ficam as 30 viagens mais recentes, só no aparelho.
 - **Quilometragem e trocas** (tela Viagens): km atual do carro (informado ou do último abastecimento, somando o que o app rodou depois) e itens de manutenção com intervalo e última troca, mostrando quanto falta ou há quanto venceu. Cada carro tem a sua ficha.
 - **Abastecimentos**: hodômetro e litros no posto dão o km/L real entre tanques cheios e mostram, no seu carro, até quantos % do preço da gasolina o etanol compensa.
 - **Alertas por sensor** (mínimo e máximo): o mostrador fica vermelho, toca, vibra e manda notificação do sistema. Tem atraso e histerese para não ficar disparando no limite.
@@ -56,12 +58,16 @@ Um único laço (`js/engine.js`) atende todas as telas. Cada tela pede os sensor
 | `js/maint.js` | Quilometragem e trocas de manutenção |
 | `js/health.js` | Modo simples, verificação de falhas ao conectar e códigos explicados |
 | `js/explain.js`, `js/trips.js` | Explicação de cada sensor; viagens, estilo de direção, dicas e abastecimentos |
+| `js/rec.js` | Gravação das viagens no IndexedDB e tela Rever viagem |
+| `js/motion.js` | Força lateral nas curvas pelo sensor de movimento do celular |
+| `js/inspect.js` | Vistoria de carro usado |
 | `js/settings.js`, `js/demo.js` | Consumo do veículo, viagem e backup; simulador |
 | `js/nav.js`, `js/main.js` | Barra de baixo, conectar e compartilhar; inicialização |
 | `sw.js`, `manifest.webmanifest` | Offline, notificações e instalação |
 
 ## Segurança e privacidade
 - Nenhum dado sai do aparelho (a não ser quando o usuário escolhe exportar ou perguntar a uma IA).
+- As gravações das viagens (com o trajeto do GPS) ficam no IndexedDB do navegador, fora do backup, e são apagadas junto com "Apagar dados deste aparelho".
 - `Content-Security-Policy` com `script-src 'self'`: nenhum script inline ou de outro domínio roda.
 - Backups importados são reconstruídos campo a campo (chaves conhecidas, números com limites, textos curtos); textos são sempre escapados ao aparecer na tela.
 

@@ -45,7 +45,7 @@ function drawSpark(g, x, y, w, h, s, dpr){
     g.fillStyle = C.muted; g.font = 500 + ' ' + 10 * dpr + 'px ' + FONT; g.textAlign = 'center'; g.textBaseline = 'middle';
     g.fillText('histórico: aguardando dados', x + w / 2, y + h / 2); return;
   }
-  const now = Date.now(), t0 = now - s.win * 1000;
+  const now = s.now ?? Date.now(), t0 = now - s.win * 1000;
   let lo = Infinity, hi = -Infinity;
   for (const v of pts.v){ if (v < lo) lo = v; if (v > hi) hi = v; }
   const pad = (hi - lo) * 0.15 || Math.abs(hi) * 0.05 || 1;
@@ -234,7 +234,7 @@ function drawVBar(g, W, H, s, dpr){
 /* ---- Gráfico (histórico) ---- */
 function drawGraph(g, W, H, s, dpr){
   const pl = 34 * dpr, pr = 8 * dpr, pt = 30 * dpr, pb = 16 * dpr, w = W - pl - pr, h = H - pt - pb;
-  const pts = s.hist || { t: [], v: [] }, now = Date.now(), span = s.win * 1000;
+  const pts = s.hist || { t: [], v: [] }, now = s.now ?? Date.now(), span = s.win * 1000;
   let lo = s.lo, hi = s.hi;
   if (s.auto && pts.v.length){
     lo = Math.min(...pts.v); hi = Math.max(...pts.v);

@@ -30,7 +30,7 @@ $('connDlg').addEventListener('click', e => {
 $('connClose').onclick = () => $('connDlg').close();
 
 /* ---- Compartilhar: o JSON da tela atual ou o relatório completo, e "Perguntar à IA" ---- */
-const SHARE = { painel: 'painel', viagens: 'viagens', falhas: 'falhas', sondas: 'sondas', vivo: 'sensores', tensao: 'tensao', ficha: 'ficha', log: 'log' };
+const SHARE = { painel: 'painel', viagens: 'viagens', replay: 'viagens', falhas: 'falhas', sondas: 'sondas', vivo: 'sensores', tensao: 'tensao', ficha: 'ficha', log: 'log', vistoria: 'vistoria' };
 let shareKey = 'tudo';
 function shareScope(screenKey){
   const opts = (screenKey ? [[screenKey, 'Esta tela: ' + EXPORTS[screenKey][0]]] : []).concat([['tudo', 'Relatório completo']]);
