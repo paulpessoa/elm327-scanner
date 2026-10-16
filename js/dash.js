@@ -55,6 +55,7 @@ function renderDash(){
     const d = sensorDef(w.k);
     return '<div class="wg" data-id="' + esc(w.id) + '" role="img" aria-label="' + esc(w.title || d?.name || w.k) + '" tabindex="0">' +
       '<canvas></canvas>' +
+      (editMode ? '' : '<button class="winfo" data-act="info" aria-label="O que é ' + esc(d?.name || w.k) + '?">i</button>') +
       (editMode ? '<div class="wtools"><button data-act="left" aria-label="Mover para trás">◀</button><button data-act="cfg" aria-label="Configurar">⚙</button>' +
         '<button data-act="right" aria-label="Mover para frente">▶</button><button data-act="del" aria-label="Remover">✕</button></div>' : '') + '</div>';
   }).join('') + (editMode || !ws.length ? '<button class="wg wadd" data-act="add">＋ Adicionar mostrador</button>' : '');
@@ -167,6 +168,7 @@ $('grid').addEventListener('click', e => {
   switch (b.dataset.act){
     case 'add': openWidgetDlg(null); break;
     case 'cfg': openWidgetDlg(ws[i]); break;
+    case 'info': openInfo(ws[i].k); break;
     case 'del': if (confirm('Remover este mostrador?')){ ws.splice(i, 1); saveCfg(); renderDash(); dashNeed(); } break;
     case 'left': if (i > 0){ [ws[i - 1], ws[i]] = [ws[i], ws[i - 1]]; saveCfg(); renderDash(); } break;
     case 'right': if (i < ws.length - 1){ [ws[i + 1], ws[i]] = [ws[i], ws[i + 1]]; saveCfg(); renderDash(); } break;
@@ -194,7 +196,7 @@ function dashKeys(){
   for (const [k, a] of Object.entries(cfg.alerts)) if (a.on) ks.add(k);
   return [...ks].filter(k => sensorDef(k));
 }
-function dashNeed(){ if (dashOn) need('painel', dashKeys()); }
+function dashNeed(){ if (dashOn) need('painel', dashKeys()); simpleNeed(); }
 function setDash(on){
   dashOn = on && !!link;
   $('btnDash').textContent = dashOn ? '■ Parar leitura' : '▶ Ler painel';
@@ -202,7 +204,7 @@ function setDash(on){
   if (dashOn) dashNeed(); else release('painel');
 }
 $('btnDash').onclick = () => setDash(!dashOn);
-addEventListener('connected', () => setDash(true));
+addEventListener('connected', () => setDash(!cfg.simple));
 addEventListener('disconnected', () => setDash(false));
 engineOn('status', s => $('dashInfo').textContent = s);
 setInterval(() => {

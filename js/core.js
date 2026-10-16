@@ -135,7 +135,7 @@ async function connectSerial(){
 }
 
 /* ============ Protocolo ELM327 ============ */
-let link = null, buf = '', pending = null, queue = Promise.resolve();
+let link = null, buf = '', pending = null, queue = Promise.resolve(), late = false;
 const state = { proto: null, pids: null };
 
 function onData(chunk){
@@ -151,7 +151,7 @@ function onData(chunk){
 function rawCmd(c, timeout = 3000, quiet = false){
   return new Promise((resolve, reject) => {
     if (!link) return reject(new Error('Não conectado'));
-    const t = setTimeout(() => { pending = null; reject(new Error('Sem resposta para ' + c)); }, timeout);
+    const t = setTimeout(() => { pending = null; late = true; reject(new Error('Sem resposta para ' + c)); }, timeout);
     const loud = !quiet || logPoll;
     pending = lines => {
       clearTimeout(t);
@@ -164,8 +164,23 @@ function rawCmd(c, timeout = 3000, quiet = false){
     link.send(c + '\r').catch(e => { clearTimeout(t); pending = null; reject(e); });
   });
 }
+// Depois de um comando sem resposta o ELM pode continuar ocupado (procurando o protocolo, por exemplo).
+// Mandar outro agora interrompe o atual ("STOPPED") e a resposta atrasada seria lida como a do próximo,
+// deixando todas as respostas trocadas dali em diante. Então espera o '>' que falta (até 5 s).
+function settle(){
+  late = false;
+  if (buf.includes('>')){ buf = ''; return; }
+  return new Promise(res => {
+    const mine = () => { clearTimeout(t); buf = ''; res(); };
+    const t = setTimeout(() => { if (pending === mine) pending = null; buf = ''; res(); }, 5000);
+    pending = mine;
+  });
+}
 // Serializa comandos: o ELM só processa um por vez
-function cmd(c, timeout, quiet){ const p = queue.then(() => rawCmd(c, timeout, quiet)); queue = p.catch(() => {}); return p; }
+function cmd(c, timeout, quiet){
+  const p = queue.then(() => late && link ? settle() : null).then(() => rawCmd(c, timeout, quiet));
+  queue = p.catch(() => {}); return p;
+}
 
 const NOISE = /^(SEARCHING|BUS INIT)/i;
 const ERR = /NO DATA|UNABLE TO CONNECT|CAN ERROR|BUS ERROR|BUS BUSY|FB ERROR|DATA ERROR|STOPPED|ERROR|^\?$/i;
@@ -246,7 +261,7 @@ async function disconnect(){
   stopLoops();
   const l = link; link = null;
   try { await l?.close(); } catch {}
-  pending = null; buf = ''; queue = Promise.resolve();
+  pending = null; buf = ''; queue = Promise.resolve(); late = false;
   setConnected(false); setStatus('', 'Desconectado'); log('Desconectado');
   dispatchEvent(new Event('disconnected'));
 }
@@ -437,6 +452,15 @@ async function supportedPids(info){
   }
   return set;
 }
+// Uma detecção por vez: quem pede no meio espera a que já está rodando. Duas ao mesmo tempo
+// misturam ATSP0 e 0100 na fila, o ELM volta a procurar o protocolo e os pedidos estouram o tempo.
+let pidsJob = null;
+async function loadPids(info, force){
+  while (pidsJob) await pidsJob.catch(() => {});
+  if (state.pids && !force) return state.pids;
+  pidsJob = supportedPids(info).then(s => state.pids = s);
+  try { return await pidsJob; } finally { pidsJob = null; }
+}
 
 function readiness(b){
   const [, B, C, D] = b, rows = [];
@@ -496,7 +520,7 @@ async function gerarFicha(){
     A['Original ou clone?'] = verdict;
   }
   await step('Detectando protocolo do carro (pode levar até 15 s)', async () => {
-    state.pids = await supportedPids(s => $('fichaStep').textContent = s);
+    await loadPids(s => $('fichaStep').textContent = s, true);
     state.proto = first(await cmd('ATDPN')).replace(/^A/i, '');
     const dp = first(await cmd('ATDP')).replace(/^AUTO,?\s*/i, '');
     V['Protocolo'] = dp && dp !== '—' ? dp : PROTO[state.proto] || '?';
@@ -548,7 +572,7 @@ function liveList(){
 }
 function buildTiles(list){
   $('tiles').innerHTML = list.map(p => { const d = PIDS[p];
-    return '<div class="tile" id="t' + hex2(p) + '"><span>' + esc(d.name) + '</span><b>--</b><span>' + (d.unit || '') + '</span>' +
+    return '<div class="tile" id="t' + hex2(p) + '"><button class="tinfo" data-info="' + hex2(p) + '" aria-label="O que é ' + esc(d.name) + '?">i</button><span>' + esc(d.name) + '</span><b>--</b><span>' + (d.unit || '') + '</span>' +
       (d.ref ? '<small>ref.: ' + d.ref + '</small>' : '') +
       (d.f ? '<button class="tadd" data-add="' + hex2(p) + '" aria-label="Adicionar ' + esc(d.name) + ' ao painel" title="Adicionar ao painel">＋</button>' : '') + '</div>'; }).join('');
 }
@@ -559,6 +583,7 @@ function setTile(p, val, na){
   t.querySelector('b').textContent = val;
 }
 $('tiles').onclick = e => {
+  const inf = e.target.closest('[data-info]'); if (inf){ openInfo('p' + inf.dataset.info); return; }
   const b = e.target.closest('[data-add]'); if (!b) return;
   dashAddSensor('p' + b.dataset.add);
   b.textContent = '✓'; setTimeout(() => b.textContent = '＋', 1200);
@@ -572,7 +597,7 @@ function csvLabel(){ $('btnCsv').textContent = 'Baixar CSV (' + csv.rows.length 
 async function liveStart(){
   const info = s => $('liveInfo').textContent = s;
   $('liveMode').disabled = true;
-  if (!state.pids) state.pids = await supportedPids(info).catch(() => null);
+  if (!state.pids) await loadPids(info).catch(() => null);
   if (!liveOn) return;
   const list = liveList();
   if (list.join() !== csv.cols.join()){ csv.cols = list; csv.rows = []; csvLabel(); }
@@ -623,10 +648,14 @@ function dtcInfo(code){
   const sub = code[0] === 'P' && '01'.includes(code[1]) ? ({1:'ar/combustível',2:'ar/combustível (injetores)',3:'ignição / falha de combustão',4:'emissões',5:'velocidade / marcha lenta',6:'ECU / saídas',7:'câmbio',8:'câmbio',9:'câmbio'})[code[2]] : '';
   return [sys, kind, sub].filter(Boolean).join(' · ');
 }
-async function readDTC(mode){
+// Lê os códigos (03 armazenados, 07 pendentes) sem mexer na tela
+async function fetchDTC(mode){
   const resp = (parseInt(mode, 16) + 0x40).toString(16).toUpperCase();
   await ensurePids();
   const r = await cmd(mode, 10000);
+  // NO DATA é como algumas centrais dizem "nenhum código"; os outros erros são o carro sem responder
+  if (!hexLines(r).some(h => h.startsWith(resp)) && clean(r).some(l => ERR.test(l) && !/NO DATA/i.test(l)))
+    throw new Error('O carro não respondeu ao pedido de códigos (' + first(r) + ')');
   const isCan = /^[6-9A-C]$/i.test(state.proto || '') || hexLines(r).some(h => h.startsWith(resp) && h.length % 4 === 0);
   // Agrupa em mensagens: uma linha começando com 43/47 abre uma nova (uma por ECU)
   const msgs = [];
@@ -637,10 +666,15 @@ async function readDTC(mode){
     const start = isCan ? 2 : 1, count = isCan ? b[1] : Infinity;
     for (let i = start, k = 0; i + 1 < b.length && k < count; i += 2, k++){ const c = decodeDTC(b[i], b[i + 1]); if (c) codes.add(c); }
   }
-  diag[mode === '03' ? 'armazenados' : 'pendentes'] = [...codes].map(c => ({ codigo: c, tipo: dtcInfo(c) }));
+  diag[mode === '03' ? 'armazenados' : 'pendentes'] = [...codes].map(c => ({ codigo: c, tipo: dtcInfo(c), significado: dtcPlain(c)?.[0] || null }));
+  return [...codes];
+}
+async function readDTC(mode){ renderDTC(mode, await fetchDTC(mode)); }
+function renderDTC(mode, list){
+  const codes = new Set(list);
   const title = mode === '03' ? 'Códigos armazenados' : 'Códigos pendentes';
   $('dtcOut').innerHTML = '<h3>' + title + '</h3>' + (codes.size
-    ? [...codes].map(c => '<div class="dtc"><b>' + c + '</b><span class="small">' + esc(dtcInfo(c)) + '</span>' +
+    ? [...codes].map(c => '<div class="dtc"><b>' + c + '</b><span class="small">' + (dtcPlain(c) ? esc(dtcPlain(c)[0]) + '<br>' : '') + esc(dtcInfo(c)) + '</span>' +
         '<a href="https://www.google.com/search?q=' + c + '+OBD2" target="_blank" rel="noopener">pesquisar</a></div>').join('')
     : '<div class="empty">Nenhum código ' + (mode === '03' ? 'armazenado' : 'pendente') + '. 👍</div>');
 }
@@ -654,8 +688,7 @@ $('btnDtcClear').onclick = async () => {
 };
 
 async function ensurePids(){
-  if (!state.pids) state.pids = await supportedPids(s => $('dtcOut').innerHTML = '<div class="empty">' + esc(s) + '</div>');
-  return state.pids;
+  return loadPids(s => $('dtcOut').innerHTML = '<div class="empty">' + esc(s) + '</div>');
 }
 async function readMonitors(){
   await ensurePids();

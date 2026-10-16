@@ -23,6 +23,7 @@
   <div id="banner" class="banner" role="alert"></div>
 
   <div class="status" aria-live="polite"><span id="dot" class="dot"></span><span id="statusTxt">Desconectado</span></div>
+  <div id="healthBar" class="healthbar" role="alert" hidden></div>
 
   <div class="row">
     <button id="btnBle" class="primary">Conectar via BLE</button>
@@ -33,6 +34,7 @@
 
   <nav class="tabs" role="tablist">
     <button role="tab" data-tab="painel" aria-selected="true">Painel</button>
+    <button role="tab" data-tab="viagens" aria-selected="false">Viagens</button>
     <button role="tab" data-tab="sondas" aria-selected="false">Sondas</button>
     <button role="tab" data-tab="vivo" aria-selected="false">Sensores</button>
     <button role="tab" data-tab="tensao" aria-selected="false">Tensão</button>
@@ -48,6 +50,15 @@
 
   <!-- PAINEL -->
   <section id="painel" class="tab on" role="tabpanel">
+    <div id="modeChips" class="chips modes" role="tablist" aria-label="Tipo de painel">
+      <button class="chip" role="tab" data-mode="simple" aria-selected="false">Simples</button>
+      <button class="chip" role="tab" data-mode="full" aria-selected="false">Completo</button>
+    </div>
+    <div id="simpleView" hidden>
+      <div id="sStatus" class="sstatus" aria-live="polite"></div>
+      <div id="sCards" class="scards"></div>
+      <p class="small muted">Toque em um cartão para entender o que o valor quer dizer. Ao conectar, o app também confere se o carro registrou alguma falha.</p>
+    </div>
     <div id="dashWrap" class="dashwrap">
       <div class="dashbar">
         <div id="pages" class="chips" role="tablist" aria-label="Páginas do painel"></div>
@@ -65,7 +76,7 @@
       <p id="dashInfo" class="small muted dinfo" aria-live="polite"></p>
       <div id="grid" class="grid"></div>
     </div>
-    <p class="small muted">Toque e segure um mostrador (ou clique duas vezes) para escolher o sensor, o tipo de mostrador, a escala, a cor, o histórico e os alertas.</p>
+    <p id="dashHint" class="small muted">Toque e segure um mostrador (ou clique duas vezes) para escolher o sensor, o tipo de mostrador, a escala, a cor, o histórico e os alertas.</p>
     <h3>Ver fora do app</h3>
     <div class="row outrow">
       <button id="btnWake">☀ Manter tela ligada</button>
@@ -76,6 +87,79 @@
     </div>
     <p class="small muted">Os sensores mostrados fora do app são escolhidos em <b>Ajustes</b>. A janela flutuante fica por cima de outros apps (mapas, música). “Tela bloqueada” usa o controle de mídia do Android para mostrar os valores sem desbloquear.</p>
     <div class="row" data-export="painel"></div>
+  </section>
+
+  <!-- VIAGENS -->
+  <section id="viagens" class="tab" role="tabpanel">
+    <p class="small">Cada vez que você conecta o adaptador, o app grava uma viagem: distância, consumo, quanto tempo ficou parado e como foi o pé no acelerador. Ao desconectar, ela aparece aqui com dicas.</p>
+    <p id="runNow" class="small muted" aria-live="polite"></p>
+    <label class="small chk"><input type="checkbox" id="runAuto"> Gravar viagens automaticamente ao conectar</label>
+
+    <h2>Resumo</h2>
+    <div id="runSum" class="stats four"></div>
+    <div class="tw"><table id="runStyle"></table></div>
+    <p class="small muted">O km/L das viagens usa litros <b>calculados</b> (veja Ajustes). Como todas usam o mesmo cálculo, a comparação entre elas é justa: dá para ver quanto o pé pesado custa no <i>seu</i> carro.</p>
+
+    <h2>Viagens</h2>
+    <div id="runList"></div>
+    <details>
+      <summary>Como o app avalia o jeito de dirigir</summary>
+      <div class="tw"><table>
+        <tr><td>Aceleração forte</td><td>Ganhar velocidade a mais de 2,5 m/s² (ex.: de 0 a 36 km/h em 4 s). Saindo de menos de 20 km/h conta como arrancada.</td></tr>
+        <tr><td>Frenagem forte</td><td>Perder velocidade a mais de 3,5 m/s² (ex.: de 60 a 0 em menos de 5 s).</td></tr>
+        <tr><td>Giro alto</td><td>Andando acima de 3.000 rpm.</td></tr>
+        <tr><td><span class="lvl lvl-ok">Pé leve</span></td><td>Menos de 1,5 acelerações/frenagens fortes a cada 10 km e menos de 5% do tempo em giro alto.</td></tr>
+        <tr><td><span class="lvl lvl-bad">Pé pesado</span></td><td>Mais de 4 a cada 10 km ou mais de 15% do tempo em giro alto.</td></tr>
+      </table></div>
+      <p class="small muted">Critérios do app, pensados para carros 1.0 a 2.0 de passeio. A velocidade vem do OBD (ou do GPS), lida algumas vezes por segundo: eventos muito curtos podem escapar.</p>
+    </details>
+    <div class="row">
+      <button id="btnRunClr" class="danger">Apagar histórico de viagens</button>
+    </div>
+
+    <h2>Quilometragem e trocas</h2>
+    <p id="mCar" class="small muted"></p>
+    <div class="row">
+      <input id="mOdo" type="number" inputmode="numeric" min="0" step="1" style="flex:1 1 160px" aria-label="Quilometragem atual do carro">
+      <button id="btnOdo" class="primary">Salvar km atual</button>
+    </div>
+    <p id="mOdoInfo" class="small"></p>
+    <div id="mList"></div>
+    <div class="row">
+      <input id="mNewName" maxlength="40" placeholder="Outro item (ex.: bateria)" style="flex:1 1 160px" aria-label="Nome do novo item">
+      <button id="btnMNew">Adicionar item</button>
+    </div>
+    <p class="small muted">Os intervalos mudam de carro para carro: copie do manual ou do plano de revisão. Quem roda muito em trânsito pesado, poeira ou trajetos curtos costuma ter que trocar antes (o manual chama de “uso severo”). Ao registrar um abastecimento, o km do hodômetro também atualiza aqui.</p>
+
+    <h2>Abastecimentos</h2>
+    <p class="small">O jeito mais confiável de saber o consumo real: no posto, anote o <b>hodômetro</b> (km total do painel) e os litros. Com dois tanques cheios seguidos, o app calcula o km/L de verdade, sem estimativa.</p>
+    <div class="form">
+      <label>Hodômetro (km)<input id="fOdo" type="number" step="1" min="0" inputmode="numeric" placeholder="ex.: 45210"></label>
+      <label>Litros<input id="fL" type="number" step="0.01" min="0" inputmode="decimal" placeholder="ex.: 38,5"></label>
+      <label>Preço por litro (R$)<input id="fPrice" type="number" step="0.01" min="0" inputmode="decimal"></label>
+      <label>Combustível<select id="fFuel"><option value="gas">Gasolina</option><option value="eth">Etanol</option><option value="mix">Misturei os dois</option></select></label>
+    </div>
+    <div class="row">
+      <label class="small chk"><input type="checkbox" id="fFull" checked> Enchi o tanque</label>
+      <button id="btnFill" class="primary">Registrar abastecimento</button>
+    </div>
+    <h3>Gasolina × etanol no seu carro</h3>
+    <div id="fuelCmp" class="stats"></div>
+    <p id="fuelVerdict" class="small"></p>
+    <details>
+      <summary>Abastecimentos registrados</summary>
+      <div class="tw"><table id="fillList"></table></div>
+    </details>
+
+    <h2>Dicas gerais de economia</h2>
+    <ul class="small">
+      <li><b>Pneus calibrados</b> com a pressão da etiqueta da porta ou do manual. Pneu murcho aumenta o consumo e gasta o pneu.</li>
+      <li><b>Peso:</b> não carregue peso à toa no porta-malas.</li>
+      <li><b>Ar-condicionado</b> gasta mais na cidade; na estrada, janela aberta aumenta a resistência do ar.</li>
+      <li><b>Banguela não economiza:</b> em ponto morto o motor precisa de combustível para ficar ligado; engatado e sem acelerar, a injeção corta.</li>
+      <li><b>Manutenção</b> em dia (filtro de ar, velas, óleo). Luz de injeção acesa quase sempre aumenta o consumo.</li>
+    </ul>
+    <div class="row" data-export="viagens"></div>
   </section>
 
   <!-- SONDAS -->
@@ -558,6 +642,11 @@
   </form>
 </dialog>
 
+<dialog id="infoDlg" class="sheet" aria-labelledby="infoTitle">
+  <div id="infoBody" class="ibody" aria-live="polite"></div>
+  <div class="row dlgbtns"><button id="infoClose" class="primary">Entendi</button></div>
+</dialog>
+
 <script src="js/config.js"></script>
 <script src="js/engine.js"></script>
 <script src="js/core.js"></script>
@@ -566,8 +655,12 @@
 <script src="js/alerts.js"></script>
 <script src="js/lambda.js"></script>
 <script src="js/outside.js"></script>
+<script src="js/explain.js"></script>
 <script src="js/gps.js"></script>
 <script src="js/cars.js"></script>
+<script src="js/trips.js"></script>
+<script src="js/health.js"></script>
+<script src="js/maint.js"></script>
 <script src="js/settings.js"></script>
 <script src="js/demo.js"></script>
 <script src="js/main.js"></script>

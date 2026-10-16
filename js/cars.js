@@ -17,7 +17,7 @@ function useCar(id){
   const c = CARS[id]; if (!c) return;
   cfg.vehicle.car = id; cfg.vehicle.disp = c.disp;
   $('carName').value = c.nome; try { localStorage.setItem('carName', c.nome); } catch {}
-  saveCfg(); bindVehicle(); renderCars();
+  saveCfg(); bindVehicle(); renderCars(); renderRuns(); renderMaint();
 }
 
 function renderCars(){
