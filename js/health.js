@@ -131,7 +131,7 @@ function simpleRender(){
     const x = explain(k), [cls, txt] = LVL[x.lvl];
     return '<button class="scard" data-k="' + k + '" aria-label="' + label + ': o que significa"><span class="sl">' + label + '</span>' +
       '<b>' + esc(String(x.v)) + '<small> ' + esc(x.unit || '') + '</small></b><span class="lvl lvl-' + cls + '">' + txt + '</span>' +
-      '<span class="sm">' + (x.lvl === 'na' ? (link ? 'Aguardando leitura' : '') : x.msg.replace(/<[^>]+>/g, '').split('. ')[0] + '.') + '</span><i class="sinfo" aria-hidden="true">i</i></button>';
+      '<span class="sm">' + (x.lvl === 'na' ? (link ? 'Aguardando leitura' : '') : x.msg.replace(/<[^>]+>/g, '').split('. ')[0].replace(/\.$/, '') + '.') + '</span><i class="sinfo" aria-hidden="true">i</i></button>';
   }).join('');
 }
 $('sCards').onclick = e => { const b = e.target.closest('[data-k]'); if (b) openInfo(b.dataset.k); };
