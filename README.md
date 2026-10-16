@@ -75,3 +75,13 @@ O Bluetooth exige HTTPS ou `localhost`, e não funciona se a página estiver den
 | Chrome Android (Samsung: use o Chrome, não o Samsung Internet) | ✅ | depende da versão | ✅ | ✅ (player de mídia) |
 | Chrome Windows/Mac | ✅ | ✅ (117+) | ✅ | controle de mídia |
 | iPhone | só pelo app Bluefy | ❌ | ❌ | ❌ |
+
+## Contribuir
+Contribuições são bem-vindas, inclusive no **Hacktoberfest**: código, perfis de carros, textos explicativos e testes no seu carro. Não tem build, então basta clonar, rodar o servidor acima e usar o **Modo demonstração**.
+
+- Leia o [guia de contribuição](CONTRIBUTING.md).
+- Comece pelas issues [`good first issue`](https://github.com/paulpessoa/elm327-scanner/labels/good%20first%20issue) e [`hacktoberfest`](https://github.com/paulpessoa/elm327-scanner/labels/hacktoberfest).
+- Testou no seu carro? Conte como foi com o modelo de issue [Meu carro](https://github.com/paulpessoa/elm327-scanner/issues/new?template=carro.yml).
+
+## Licença
+[MIT](LICENSE)
