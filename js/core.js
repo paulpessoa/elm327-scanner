@@ -548,7 +548,7 @@ function liveList(){
 }
 function buildTiles(list){
   $('tiles').innerHTML = list.map(p => { const d = PIDS[p];
-    return '<div class="tile" id="t' + hex2(p) + '"><button class="tinfo" data-info="' + hex2(p) + '" aria-label="O que é ' + esc(d.name) + '?">i</button><span>' + esc(d.name) + '</span><b>--</b><span>' + (d.unit || '') + '</span>' +
+    return '<div class="tile" id="t' + hex2(p) + '"><span>' + esc(d.name) + '</span><b>--</b><span>' + (d.unit || '') + '</span>' +
       (d.ref ? '<small>ref.: ' + d.ref + '</small>' : '') +
       (d.f ? '<button class="tadd" data-add="' + hex2(p) + '" aria-label="Adicionar ' + esc(d.name) + ' ao painel" title="Adicionar ao painel">＋</button>' : '') + '</div>'; }).join('');
 }
@@ -559,7 +559,6 @@ function setTile(p, val, na){
   t.querySelector('b').textContent = val;
 }
 $('tiles').onclick = e => {
-  const inf = e.target.closest('[data-info]'); if (inf){ openInfo('p' + inf.dataset.info); return; }
   const b = e.target.closest('[data-add]'); if (!b) return;
   dashAddSensor('p' + b.dataset.add);
   b.textContent = '✓'; setTimeout(() => b.textContent = '＋', 1200);
@@ -624,8 +623,7 @@ function dtcInfo(code){
   const sub = code[0] === 'P' && '01'.includes(code[1]) ? ({1:'ar/combustível',2:'ar/combustível (injetores)',3:'ignição / falha de combustão',4:'emissões',5:'velocidade / marcha lenta',6:'ECU / saídas',7:'câmbio',8:'câmbio',9:'câmbio'})[code[2]] : '';
   return [sys, kind, sub].filter(Boolean).join(' · ');
 }
-// Lê os códigos (03 armazenados, 07 pendentes) sem mexer na tela
-async function fetchDTC(mode){
+async function readDTC(mode){
   const resp = (parseInt(mode, 16) + 0x40).toString(16).toUpperCase();
   await ensurePids();
   const r = await cmd(mode, 10000);
@@ -639,15 +637,10 @@ async function fetchDTC(mode){
     const start = isCan ? 2 : 1, count = isCan ? b[1] : Infinity;
     for (let i = start, k = 0; i + 1 < b.length && k < count; i += 2, k++){ const c = decodeDTC(b[i], b[i + 1]); if (c) codes.add(c); }
   }
-  diag[mode === '03' ? 'armazenados' : 'pendentes'] = [...codes].map(c => ({ codigo: c, tipo: dtcInfo(c), significado: dtcPlain(c)?.[0] || null }));
-  return [...codes];
-}
-async function readDTC(mode){ renderDTC(mode, await fetchDTC(mode)); }
-function renderDTC(mode, list){
-  const codes = new Set(list);
+  diag[mode === '03' ? 'armazenados' : 'pendentes'] = [...codes].map(c => ({ codigo: c, tipo: dtcInfo(c) }));
   const title = mode === '03' ? 'Códigos armazenados' : 'Códigos pendentes';
   $('dtcOut').innerHTML = '<h3>' + title + '</h3>' + (codes.size
-    ? [...codes].map(c => '<div class="dtc"><b>' + c + '</b><span class="small">' + (dtcPlain(c) ? esc(dtcPlain(c)[0]) + '<br>' : '') + esc(dtcInfo(c)) + '</span>' +
+    ? [...codes].map(c => '<div class="dtc"><b>' + c + '</b><span class="small">' + esc(dtcInfo(c)) + '</span>' +
         '<a href="https://www.google.com/search?q=' + c + '+OBD2" target="_blank" rel="noopener">pesquisar</a></div>').join('')
     : '<div class="empty">Nenhum código ' + (mode === '03' ? 'armazenado' : 'pendente') + '. 👍</div>');
 }

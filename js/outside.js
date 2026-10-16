@@ -5,7 +5,7 @@
 //    e o título, o artista e a capa desse player são os valores dos sensores.
 //  · Notificação fixa, atualizada a cada poucos segundos (aparece na tela bloqueada).
 //  · Manter a tela ligada (Wake Lock), o mais confiável para usar como painel no carro.
-const SHORT = { p05:'Água', p0C:'RPM', p0D:'Velocidade', atrv:'Bateria', p42:'ECU', 'c:avg':'Média', 'c:kml':'Consumo', 'c:lph':'L/h',
+const SHORT = { p05:'Motor', p0C:'RPM', p0D:'Velocidade', atrv:'Bateria', p42:'ECU', 'c:avg':'Média', 'c:kml':'Consumo', 'c:lph':'L/h',
   'c:km':'Viagem', 'c:fuel':'Gasto', 'c:cost':'Custo', p2F:'Tanque', p0F:'Admissão', p14:'Sonda pré', p15:'Sonda pós', p0B:'MAP', p04:'Carga', p5C:'Óleo',
   'c:kml1':'Último km', 'c:l100':'L/100', 'c:gspd':'GPS', 'c:kmg':'Km GPS', 'c:kmo':'Km OBD' };
 const out = { wake: false, pip: false, lock: false, notif: false };

@@ -17,12 +17,6 @@ Para chegar na oficina sabendo o que o carro está dizendo. O app lê o que a ce
 
 ## O que faz
 - **Painel personalizável** (inspirado nos apps de painel de carro): várias páginas, mostradores de **ponteiro, arco, digital, barra, barra vertical e gráfico**, cada um com escala, cor, tamanho, marca de pico, mín/méd/máx e **histórico embutido** (10 s a 15 min). Toque e segure para configurar. Tela cheia deitada para usar no suporte.
-- **Modo simples** (padrão em instalação nova): um “Tudo certo / Atenção / Procure um mecânico” e quatro cartões grandes (água, bateria, consumo agora e média). O painel completo continua a um toque.
-- **Falhas conferidas ao conectar**: lê os códigos armazenados e pendentes, avisa quando aparece um código novo e explica os mais comuns em português simples.
-- **Botão “i” em cada sensor**: explica em linguagem simples o que é o valor, se está normal agora (com motor frio/quente, lenta ou andando), causas comuns quando está fora e a comparação com a linha de base do seu carro.
-- **Viagens**: uma por conexão, com km, km/L, custo, tempo parado, giro alto, acelerações/frenagens fortes, avaliação do estilo (pé leve, moderado, pesado) e dicas. Comparação de consumo entre estilos.
-- **Quilometragem e trocas** (aba Viagens): km atual do carro (informado ou do último abastecimento, somando o que o app rodou depois) e itens de manutenção com intervalo e última troca, mostrando quanto falta ou há quanto venceu. Cada carro tem a sua ficha.
-- **Abastecimentos**: hodômetro e litros no posto dão o km/L real entre tanques cheios e mostram, no seu carro, até quantos % do preço da gasolina o etanol compensa.
 - **Alertas por sensor** (mínimo e máximo): o mostrador fica vermelho, toca, vibra e manda notificação do sistema. Tem atraso e histerese para não ficar disparando no limite.
 - **Sondas lambda**: osciloscópio da pré e da pós-catalisador com leitura prioritária, trocas por 10 s, frequência, amplitude, tempo no rico, tempo de resposta, **índice do catalisador**, diagnóstico automático (só julga em malha fechada) e **teste de resposta** (acelerar e soltar). Suporta sondas de banda larga.
 - **Consumo e viagem**: L/h, km/L instantâneo, média da viagem, **km/L de cada km rodado**, L/100 km, distância, litros e custo. Médias são sempre distância ÷ litros. Litros vêm da ECU (PID 5E), do MAF ou da pressão do coletor (speed-density), e o app mostra qual. Calibração pelo posto.
@@ -51,9 +45,6 @@ Um único laço (`js/engine.js`) atende todas as telas. Cada tela pede os sensor
 | `js/gauges.js`, `js/dash.js` | Mostradores e painel |
 | `js/alerts.js`, `js/lambda.js`, `js/outside.js` | Alertas, osciloscópio das sondas, exibição fora do app |
 | `js/gps.js`, `js/cars.js` | Distância pelo GPS; perfis dos carros e linha de base |
-| `js/maint.js` | Quilometragem e trocas de manutenção |
-| `js/health.js` | Modo simples, verificação de falhas ao conectar e códigos explicados |
-| `js/explain.js`, `js/trips.js` | Explicação de cada sensor; viagens, estilo de direção, dicas e abastecimentos |
 | `js/settings.js`, `js/demo.js`, `js/main.js` | Ajustes/backup, simulador, inicialização |
 | `sw.js`, `manifest.webmanifest` | Offline, notificações e instalação |
 
