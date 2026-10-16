@@ -148,7 +148,7 @@ async function engineStart(){
   engine.running = true;
   try {
     if (!state.pids){
-      state.pids = await supportedPids(s => emit('status', s)).catch(() => null);
+      await loadPids(s => emit('status', s)).catch(() => null);
       emit('status', '');
     }
     let it = 0, lastAtrv = 0, rateT = performance.now(), rateN = 0;

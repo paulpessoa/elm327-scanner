@@ -44,6 +44,10 @@ const health = { checked: false, mil: null, stored: [], pending: [], fresh: [] }
 async function healthCheck(){
   if (!link) return;
   try {
+    // Espera a detecção do protocolo que o painel já começou: os pedidos abaixo só fazem sentido depois dela
+    const pids = await loadPids(s => emit('status', s)).catch(() => null);
+    if (!link) return;
+    if (!pids?.size){ log('Verificação de falhas: o carro não respondeu (chave em ON?)'); return; }
     const b = await pid('01', 4000, true).catch(() => null);
     health.mil = b ? !!(b[0] & 0x80) : null;
     health.stored = await fetchDTC('03');
@@ -73,14 +77,21 @@ function healthBar(){
 }
 $('healthBar').onclick = e => {
   if (e.target.closest('[data-x]')) $('healthBar').hidden = true;
-  if (e.target.closest('[data-go]')){ document.querySelector('.tabs [data-tab="falhas"]').click(); renderDTC('03', health.stored); }
+  if (e.target.closest('[data-go]')){
+    document.querySelector('.tabs [data-tab="falhas"]').click();
+    if (health.stored.length || !health.pending.length) renderDTC('03', health.stored); else renderDTC('07', health.pending);
+  }
 };
 
 /* ---- Modo simples: quatro cartões grandes e um "tudo certo?" ---- */
 const SIMPLE = [['p05', 'Água'], ['atrv', 'Bateria'], ['c:kml', 'Consumo agora'], ['c:avg', 'Média da viagem']];
 const SIMPLE_READ = ['p05', 'atrv', 'c:kml', 'c:avg', 'p0C', 'p0D', 'p03', 'p1F'];
 const simpleOn = () => cfg.simple && tabOpen('painel');
-function simpleNeed(){ if (cfg.simple && link) need('simples', SIMPLE_READ); else release('simples'); }
+// Com o painel completo desligado, os alertas ligados continuam sendo lidos aqui
+function simpleNeed(){
+  if (!cfg.simple || !link){ release('simples'); return; }
+  need('simples', [...SIMPLE_READ, ...Object.keys(cfg.alerts).filter(k => cfg.alerts[k].on && sensorDef(k))]);
+}
 function setMode(simple){
   cfg.simple = simple; saveCfg();
   $('simpleView').hidden = !simple; $('dashWrap').hidden = simple; $('dashHint').hidden = simple;

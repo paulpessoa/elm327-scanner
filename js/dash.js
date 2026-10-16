@@ -196,7 +196,7 @@ function dashKeys(){
   for (const [k, a] of Object.entries(cfg.alerts)) if (a.on) ks.add(k);
   return [...ks].filter(k => sensorDef(k));
 }
-function dashNeed(){ if (dashOn) need('painel', dashKeys()); }
+function dashNeed(){ if (dashOn) need('painel', dashKeys()); simpleNeed(); }
 function setDash(on){
   dashOn = on && !!link;
   $('btnDash').textContent = dashOn ? '■ Parar leitura' : '▶ Ler painel';
