@@ -4,9 +4,9 @@ Scanner OBD-II que roda no navegador (Chrome/Edge) e conversa com adaptadores EL
 
 **Abrir o app:** https://paulpessoa.github.io/elm327-scanner/ (sem adaptador, use o **Modo demonstração**)
 
-| Painel | Sondas lambda | Configurar mostrador |
-|---|---|---|
-| ![Painel com ponteiro de RPM, velocidade, temperatura, consumo e gráfico da sonda](docs/painel.png) | ![Osciloscópio das sondas pré e pós-catalisador com métricas](docs/sondas.png) | ![Diálogo de configuração de um mostrador](docs/config.png) |
+| Modo simples | Painel completo | Sondas lambda | Vistoria de usado |
+|---|---|---|---|
+| ![Modo simples: "Tudo certo" e cartões de água, bateria, consumo agora e média da viagem](docs/simples.png) | ![Painel com ponteiro de RPM, velocidade, temperatura do motor e consumo instantâneo](docs/painel.png) | ![Osciloscópio das sondas pré e pós-catalisador com métricas](docs/sondas.png) | ![Laudo da vistoria: nenhum sinal de alerta, sem códigos de falha, códigos não apagados recentemente](docs/vistoria.png) |
 
 <sub>Imagens do modo demonstração (motor simulado).</sub>
 
