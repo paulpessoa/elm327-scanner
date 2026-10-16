@@ -1,0 +1,38 @@
+name: Meu carro
+description: Conte como o app funcionou no seu carro (ajuda a criar perfis e a achar problemas)
+labels: [carro]
+body:
+  - type: input
+    id: car
+    attributes:
+      label: Carro
+      placeholder: "ex.: VW Gol 2015 1.0 12V flex, manual"
+    validations:
+      required: true
+  - type: input
+    id: adapter
+    attributes:
+      label: Adaptador e conexão
+      placeholder: "ex.: clone ELM327 v1.5 BLE"
+  - type: dropdown
+    id: result
+    attributes:
+      label: Como funcionou?
+      options:
+        - Tudo certo
+        - Conectou, mas alguns sensores não aparecem
+        - Conectou, mas não leu nada
+        - Não conectou
+    validations:
+      required: true
+  - type: textarea
+    id: ficha
+    attributes:
+      label: Ficha
+      description: Aba Ficha → "Gerar ficha completa" → "Copiar JSON" e cole aqui. Apague o chassi (VIN) se preferir.
+      render: json
+  - type: textarea
+    id: notes
+    attributes:
+      label: Observações
+      description: Valores que pareceram errados, o que funcionou bem, sugestões.

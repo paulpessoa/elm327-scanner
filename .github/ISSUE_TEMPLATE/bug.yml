@@ -1,0 +1,36 @@
+name: Algo não funcionou
+description: Um erro, travamento ou valor estranho no app
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: O que aconteceu?
+      description: O que você fez, o que esperava e o que apareceu.
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Onde aconteceu?
+      options:
+        - No carro, com adaptador
+        - No modo demonstração
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Aparelho e navegador
+      placeholder: "ex.: Samsung A54, Chrome 141"
+  - type: input
+    id: adapter
+    attributes:
+      label: Adaptador e carro (se foi no carro)
+      placeholder: "ex.: Vgate iCar Pro BLE, Fiat Mobi 2020 Firefly"
+  - type: textarea
+    id: log
+    attributes:
+      label: Log
+      description: Aba Log → copie as linhas do momento do problema. Ajuda muito.
+      render: text

@@ -1,0 +1,21 @@
+name: Ideia ou melhoria
+description: Sugira um recurso novo ou uma melhoria
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Que problema isso resolve?
+      description: 'Conte a situação. Ex.: "no suporte do carro, não consigo ver X sem tirar o celular".'
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Como você imagina?
+  - type: checkboxes
+    id: help
+    attributes:
+      label: Quer fazer?
+      options:
+        - label: Gostaria de implementar isso (comente na issue antes de começar)

@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Abrir o app
+    url: https://paulpessoa.github.io/elm327-scanner/
+    about: Experimente no modo demonstração, sem carro e sem adaptador.
