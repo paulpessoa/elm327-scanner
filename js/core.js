@@ -418,6 +418,7 @@ const PIDS = {
   0x5C:{ name:'Temperatura do óleo', unit:'°C', f:temp },
   0x5D:{ name:'Ponto de injeção', unit:'°', n:2, f:b => (w16(b) / 128 - 210).toFixed(1) },
   0x5E:{ name:'Consumo', unit:'L/h', n:2, f:b => (w16(b) / 20).toFixed(1) },
+  0xA6:{ name:'Hodômetro', unit:'km', n:4, f:b => ((b[0] * 16777216 + b[1] * 65536 + b[2] * 256 + b[3]) / 10).toFixed(1) },
 };
 ['B1S1','B1S2','B1S3','B1S4','B2S1','B2S2','B2S3','B2S4'].forEach((s, i) => {
   PIDS[0x14 + i] = { name:'Sonda O2 ' + s, unit:'V', f:b => (b[0] / 200).toFixed(3), ref: i === 0 ? 'oscila 0,1–0,9' : i === 1 ? '0,5–0,8 estável' : undefined };
@@ -645,7 +646,9 @@ $('btnCsv').onclick = () => {
 };
 
 /* ============ Falhas (DTC) ============ */
-const diag = { luzInjecao: null, qtdCodigos: null, armazenados: null, pendentes: null, monitores: null, congelamento: null };
+const diag = { luzInjecao: null, qtdCodigos: null, armazenados: null, pendentes: null, permanentes: null, monitores: null, congelamento: null };
+// 03 armazenados, 07 pendentes, 0A permanentes (a central só apaga sozinha, depois de confirmar o conserto)
+const DTC_KEY = { '03': 'armazenados', '07': 'pendentes', '0A': 'permanentes' };
 function decodeDTC(hi, lo){
   const n = (hi << 8) | lo; if (!n) return null;
   return 'PCBU'[n >> 14] + ((n >> 12) & 3) + (n & 0xFFF).toString(16).toUpperCase().padStart(3, '0');
@@ -656,7 +659,7 @@ function dtcInfo(code){
   const sub = code[0] === 'P' && '01'.includes(code[1]) ? ({1:'ar/combustível',2:'ar/combustível (injetores)',3:'ignição / falha de combustão',4:'emissões',5:'velocidade / marcha lenta',6:'ECU / saídas',7:'câmbio',8:'câmbio',9:'câmbio'})[code[2]] : '';
   return [sys, kind, sub].filter(Boolean).join(' · ');
 }
-// Lê os códigos (03 armazenados, 07 pendentes) sem mexer na tela
+// Lê os códigos (03, 07 ou 0A) sem mexer na tela
 async function fetchDTC(mode){
   const resp = (parseInt(mode, 16) + 0x40).toString(16).toUpperCase();
   await ensurePids();
@@ -674,7 +677,7 @@ async function fetchDTC(mode){
     const start = isCan ? 2 : 1, count = isCan ? b[1] : Infinity;
     for (let i = start, k = 0; i + 1 < b.length && k < count; i += 2, k++){ const c = decodeDTC(b[i], b[i + 1]); if (c) codes.add(c); }
   }
-  diag[mode === '03' ? 'armazenados' : 'pendentes'] = [...codes].map(c => ({ codigo: c, tipo: dtcInfo(c), significado: dtcPlain(c)?.[0] || null }));
+  diag[DTC_KEY[mode]] = [...codes].map(c => ({ codigo: c, tipo: dtcInfo(c), significado: dtcPlain(c)?.[0] || null }));
   return [...codes];
 }
 async function readDTC(mode){ renderDTC(mode, await fetchDTC(mode)); }

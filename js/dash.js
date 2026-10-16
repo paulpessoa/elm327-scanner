@@ -64,19 +64,22 @@ function renderDash(){
 }
 
 function layoutDash(){
-  const grid = $('grid'), W = grid.clientWidth; if (!W) return;
-  const fs = document.fullscreenElement === $('dashWrap');
-  const cols = W < 520 ? 2 : W < 860 ? 3 : (fs && W > 1300 ? 6 : 4);
+  layoutGrid($('grid'), page().w, document.fullscreenElement === $('dashWrap'), () => { drawnAt.clear(); kickDraw(); });
+}
+// Distribui os mostradores na grade e dimensiona os canvas (o painel e a reprodução de viagens usam a mesma)
+function layoutGrid(grid, ws, fit, done){
+  const W = grid.clientWidth; if (!W) return;
+  const cols = W < 520 ? 2 : W < 860 ? 3 : (fit && W > 1300 ? 6 : 4);
   const gap = 8, cell = (W - gap * (cols - 1)) / cols;
   let row = cell * 0.5;
   // Em tela cheia deitada, encolhe as linhas para caber tudo sem rolar
-  if (fs){
-    const rows = packRows(page().w, cols), maxH = grid.clientHeight || innerHeight - 60;
+  if (fit){
+    const rows = packRows(ws, cols), maxH = grid.clientHeight || innerHeight - 60;
     if (rows) row = Math.min(row, (maxH - gap * (rows - 1)) / rows);
   }
   grid.style.setProperty('--cols', cols); grid.style.setProperty('--row', Math.max(40, row) + 'px');
   grid.querySelectorAll('.wg[data-id]').forEach(el => {
-    const w = page().w.find(x => x.id === el.dataset.id); if (!w) return;
+    const w = ws.find(x => x.id === el.dataset.id); if (!w) return;
     el.style.gridColumn = 'span ' + Math.min(w.w, cols); el.style.gridRow = 'span ' + w.h;
   });
   requestAnimationFrame(() => {
@@ -84,7 +87,7 @@ function layoutDash(){
     grid.querySelectorAll('.wg[data-id] canvas').forEach(cv => {
       cv.width = Math.round(cv.clientWidth * dpr); cv.height = Math.round(cv.clientHeight * dpr);
     });
-    drawnAt.clear(); kickDraw();
+    done?.();
   });
 }
 // Quantas linhas a grade vai ocupar (simulação simples do auto-placement em fluxo)
@@ -126,15 +129,16 @@ function frame(ts){
   });
   requestAnimationFrame(frame);
 }
-function gaugeState(w, now = Date.now()){
+// src: de onde vêm os valores. Ao vivo é o store; na reprodução de uma viagem, a gravação (com now no momento escolhido).
+function gaugeState(w, now = Date.now(), src = store){
   const d = sensorDef(w.k) || { name: w.k, unit: '', r: [0, 100], d: 1, ok: null };
-  const al = cfg.alerts[w.k], e = store.get(w.k);
+  const al = cfg.alerts[w.k], e = src.get(w.k);
   const v = e && now - e.t < 15000 ? e.v : null;
   let lo = w.lo ?? d.r[0], hi = w.hi ?? d.r[1];
   if (!(hi > lo)){ lo = d.r[0]; hi = d.r[1]; }
   const dec = w.dec ?? d.d;
   const needHist = w.type === 'graph' || w.hist || w.peak || w.stats;
-  const hist = needHist ? store.since(w.k, w.win * 1000, now) : null;
+  const hist = needHist ? src.since(w.k, w.win * 1000, now) : null;
   let max = null, st = null;
   if (hist?.v.length){
     let mn = Infinity, mx = -Infinity, sum = 0;
@@ -142,16 +146,19 @@ function gaugeState(w, now = Date.now()){
     max = mx; st = { min: mn, max: mx, avg: sum / hist.v.length };
     // km/L: a média do período é km rodados ÷ litros gastos nele, não a média das leituras instantâneas
     // (parado ou na banguela essas leituras pesariam igual a um minuto de estrada)
-    if (w.k === 'c:kml') st.avg = distAvg(w.win * 1000, now);
+    if (w.k === 'c:kml') st.avg = distAvg(w.win * 1000, now, src);
   }
+  // Ao vivo o alerta vem do motor de alertas (com atraso e histerese); numa gravação, só a comparação com o limite
+  const alert = src === store ? alertActive(w.k)
+    : typeof v === 'number' && !!al?.on && ((al.min != null && v < al.min) || (al.max != null && v > al.max));
   return {
     type: d.text ? 'digital' : w.type, title: w.title || d.name, unit: d.unit, lo, hi, dec, v, a: v,
     color: ACCENTS[w.color], zones: { ok: d.ok, min: al?.on ? al.min : null, max: al?.on ? al.max : null },
-    alert: alertActive(w.k), peak: w.peak, max, hist, showHist: w.hist, stats: w.stats, st, win: w.win, auto: w.auto
+    alert, peak: w.peak, max, hist, showHist: w.hist, stats: w.stats, st, win: w.win, auto: w.auto, now
   };
 }
-function distAvg(ms, now){
-  const k = store.since('c:km', ms, now).v, l = store.since('c:fuel', ms, now).v;
+function distAvg(ms, now, src = store){
+  const k = src.since('c:km', ms, now).v, l = src.since('c:fuel', ms, now).v;
   if (k.length < 2 || l.length < 2) return null;
   const dk = k[k.length - 1] - k[0], dl = l[l.length - 1] - l[0];
   return dk > 0.05 && dl > 0.002 ? dk / dl : null;

@@ -76,8 +76,9 @@ function bindBackup(){
   };
   $('btnBkPaste').onclick = () => { const t = $('bkText').value.trim(); if (t.length > 2e6){ alert('Texto grande demais.'); return; } if (t) importBackup(t); };
   $('btnBkReset').onclick = () => {
-    if (!confirm('Apagar painéis, alertas, viagem e preferências deste aparelho e voltar ao padrão?')) return;
+    if (!confirm('Apagar painéis, alertas, viagens (com as gravações e o trajeto do GPS) e preferências deste aparelho e voltar ao padrão?')) return;
     try { localStorage.removeItem(CFG_KEY); } catch {}
+    recClear();
     cfg = defaultCfg(); saveCfg(); refreshAll();
   };
 }

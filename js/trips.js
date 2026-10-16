@@ -2,8 +2,10 @@
 // Cada vez que o adaptador conecta começa uma viagem; ao desconectar (ou ao reabrir o app, se ele
 // foi fechado no meio) ela vai para o histórico. Distância e litros vêm dos mesmos hodômetros da
 // viagem de Ajustes (diferença entre o início e o fim), então o método é o mesmo em todas.
+// Início e fim viram os eventos 'runstart' e 'runend', e cada aceleração, frenagem ou curva forte
+// vira um evento 'drive': a gravação (rec.js) escuta os três sem que este arquivo saiba dela.
 // Critérios do estilo (ficam visíveis na tela para ninguém achar que é mágica):
-const ST = { acc: 2.5, brk: 3.5, launch: 20, rpm: 3000, fast: 110, gap: 4 };   // m/s², m/s², km/h, rpm, km/h, s entre eventos
+const ST = { acc: 2.5, brk: 3.5, launch: 20, rpm: 3000, fast: 110, gap: 4, lat: 0.35, latMs: 1000 };   // m/s², m/s², km/h, rpm, km/h, s entre eventos, g, ms na curva
 const RUN_SPEED = ['p0D', 'p0C', 'p05', 'c:lph'];
 let run = null;   // viagem em andamento (com os valores iniciais dos hodômetros)
 
@@ -11,11 +13,13 @@ function runStart(force){
   if (run || !link || (!force && (!cfg.runOpt.auto || link.kind === 'Demo'))) return;
   const t = cfg.trip;
   run = { t0: Date.now(), kmObd0: t.kmObd, kmGps0: t.kmGps, L0: t.L, car: cfg.vehicle.car, fuel: cfg.vehicle.fuel, eth: cfg.vehicle.ethanol,
-    price: cfg.vehicle.price, corr: cfg.vehicle.corr, idle_s: 0, move_s: 0, hirpm_s: 0, fast_s: 0, vmax: 0, acc: 0, arr: 0, brk: 0, idleL: 0,
-    temp0: null, win: [], last: null, evT: 0, saveT: 0 };
+    price: cfg.vehicle.price, corr: cfg.vehicle.corr, idle_s: 0, move_s: 0, hirpm_s: 0, fast_s: 0, vmax: 0, acc: 0, arr: 0, brk: 0, crv: 0, glat: 0,
+    idleL: 0, temp0: null, sim: link.kind === 'Demo', win: [], last: null, evT: 0, latT: 0, saveT: 0 };
   need('viagem', RUN_SPEED);
+  dispatchEvent(new CustomEvent('runstart', { detail: { t0: run.t0, car: run.car, sim: run.sim } }));
   runUi();
 }
+const driveEvent = (k, t, v) => dispatchEvent(new CustomEvent('drive', { detail: { k, t, v } }));
 // Resumo no formato do histórico (serve também para salvar a viagem em andamento)
 function runSummary(r = run, now = Date.now()){
   const t = cfg.trip;
@@ -28,11 +32,24 @@ function runEnd(){
   const s = runSummary();
   run = null; release('viagem');
   cfg.runCur = null;
-  if (s && (s.km >= 0.3 || s.t1 - s.t0 > 120000)){ cfg.runs.push(s); if (cfg.runs.length > 300) cfg.runs.shift(); }
+  const kept = !!s && (s.km >= 0.3 || s.t1 - s.t0 > 120000);
+  if (kept){ cfg.runs.push(s); if (cfg.runs.length > 300) cfg.runs.shift(); }
   saveCfg(); runUi(); renderRuns();
+  if (s) dispatchEvent(new CustomEvent('runend', { detail: { t0: s.t0, kept } }));
+}
+// Curva forte: força lateral (medida pelo celular, motion.js) acima de ST.lat por ST.latMs, andando
+function curveTick(g, t){
+  const spd = fresh('p0D', 5000) ?? fresh('c:gspd', 5000) ?? 0;
+  if (g == null || spd < ST.launch){ run.latT = 0; return; }
+  if (g > run.glat) run.glat = g;
+  if (g < ST.lat){ run.latT = 0; return; }
+  if (!run.latT) run.latT = t;
+  if (t - run.latT >= ST.latMs && t - run.evT > ST.gap * 1000){ run.crv++; run.evT = t; run.latT = 0; driveEvent('crv', t, g); }
 }
 engineOn('value', (k, v, t) => {
-  if (!run || typeof v !== 'number') return;
+  if (!run) return;
+  if (k === 'c:glat'){ curveTick(v, t); return; }
+  if (typeof v !== 'number') return;
   if (k === 'p05' && run.temp0 == null) run.temp0 = v;
   // A velocidade marca o compasso: tempo parado, andando, giro alto, acima de 110, acelerações e frenagens
   const spdKey = fresh('p0D', 5000) != null ? 'p0D' : 'c:gspd';
@@ -53,8 +70,8 @@ engineOn('value', (k, v, t) => {
   const old = w.find(x => t - x.t >= 1000);
   if (old && t - run.evT > ST.gap * 1000){
     const a = (v - old.v) / 3.6 / ((t - old.t) / 1000);
-    if (a >= ST.acc){ run.acc++; if (old.v < ST.launch) run.arr++; run.evT = t; }
-    else if (a <= -ST.brk){ run.brk++; run.evT = t; }
+    if (a >= ST.acc){ run.acc++; if (old.v < ST.launch) run.arr++; run.evT = t; driveEvent('acc', t, +a.toFixed(1)); }
+    else if (a <= -ST.brk){ run.brk++; run.evT = t; driveEvent('brk', t, +a.toFixed(1)); }
   }
   if (t - run.saveT > 15000){ run.saveT = t; cfg.runCur = runSummary(run, t); saveCfg(); }
 });
@@ -67,7 +84,7 @@ if (cfg.runCur){ const r = cfg.runCur; cfg.runCur = null; if (r.km >= 0.3 || r.t
 const kml = r => r.L > 0.02 && r.km >= 0.3 ? r.km / r.L : null;
 function styleOf(r){
   if (r.km < 1 || r.move_s < 60) return null;
-  const ev = (r.acc + r.brk) / r.km * 10, hi = r.hirpm_s / r.move_s * 100;
+  const ev = (r.acc + r.brk + r.crv) / r.km * 10, hi = r.hirpm_s / r.move_s * 100;
   if (ev > 4 || hi > 15) return ['bad', 'Pé pesado'];
   if (ev < 1.5 && hi < 5) return ['ok', 'Pé leve'];
   return ['warn', 'Moderado'];
@@ -83,6 +100,7 @@ function tipsOf(r){
   if (r.acc) out.push(r.acc + (r.acc > 1 ? ' acelerações fortes' : ' aceleração forte') + (r.arr ? ' (' + r.arr + ' saindo de parado)' : '') +
     '. Acelerar aos poucos gasta menos e poupa embreagem e pneus.');
   if (r.brk) out.push(r.brk + (r.brk > 1 ? ' frenagens fortes' : ' frenagem forte') + '. Olhar mais longe e tirar o pé antes aproveita o corte de combustível: com a marcha engatada e o pé fora do acelerador, a injeção desliga.');
+  if (r.crv) out.push(r.crv + (r.crv > 1 ? ' curvas fortes' : ' curva forte') + ' (até ' + r.glat.toFixed(2).replace('.', ',') + ' g). Reduzir antes de entrar na curva e acelerar de leve na saída é mais seguro e poupa pneus e suspensão.');
   if (r.fast_s > 60) out.push(mins(r.fast_s) + ' acima de ' + ST.fast + ' km/h. A resistência do ar cresce rápido com a velocidade, e o consumo junto.');
   if (r.temp0 != null && r.temp0 < 50 && r.km < 5) out.push('Viagem curta com o motor frio (' + Math.round(r.temp0) + ' °C na saída). Até esquentar o motor gasta mais; juntar pequenos trajetos ajuda.');
   if (!out.length && r.km >= 1) out.push('Boa! Nada para melhorar nesta viagem pelos critérios do app.');
@@ -136,11 +154,17 @@ function fuelCompare(){
 function runUi(){
   const el = $('runNow'); if (!el) return;
   el.innerHTML = run ? '● Gravando esta viagem desde ' + new Date(run.t0).toLocaleTimeString() + '.'
-    : link?.kind === 'Demo' ? 'Modo demonstração: viagens não são gravadas.' : cfg.runOpt.auto ? 'Conecte o adaptador: a viagem começa a ser gravada sozinha.' : 'Gravação automática desligada.';
+    : link?.kind === 'Demo' ? 'Modo demonstração: as viagens não começam sozinhas. Toque em “Começar viagem agora” para gravar uma de teste.'
+    : !link ? (cfg.runOpt.auto ? 'Conecte o adaptador: a viagem começa a ser gravada sozinha.' : 'Gravação automática desligada.')
+    : 'Nenhuma viagem em andamento.';
+  $('btnRunGo').textContent = run ? '■ Encerrar esta viagem' : '● Começar viagem agora';
+  $('btnRunGo').classList.toggle('primary', !run);
+  $('runMotion').checked = cfg.runOpt.motion;
 }
 function renderRuns(){
   if (!$('runSum')) return;
-  const runs = cfg.runs, all = sum(runs);
+  // Viagens do modo demonstração aparecem na lista, mas não entram nos totais nem na comparação de estilos
+  const runs = cfg.runs.filter(r => !r.sim), all = sum(runs);
   $('runSum').innerHTML =
     '<div><b>' + all.n + '</b><span>viagens</span></div><div><b>' + all.km.toFixed(0) + '</b><span>km</span></div>' +
     '<div><b>' + (all.kml ? all.kml.toFixed(1) : '--') + '</b><span>km/L geral</span></div><div><b>' + all.cost.toFixed(0) + '</b><span>R$ estimado</span></div>';
@@ -151,14 +175,17 @@ function renderRuns(){
   const rows = Object.entries(groups).filter(([, l]) => l.length).map(([k, l]) => { const s = sum(l);
     return '<tr><td><span class="lvl lvl-' + k + '">' + gl[k] + '</span></td><td>' + l.length + '</td><td>' + s.km.toFixed(0) + '</td><td>' + (s.kml ? s.kml.toFixed(1) : '--') + '</td></tr>'; });
   $('runStyle').innerHTML = rows.length ? '<tr><th>Estilo</th><th>viagens</th><th>km</th><th>km/L</th></tr>' + rows.join('') : '<tr><td class="muted">Rode pelo menos 1 km para avaliar.</td></tr>';
-  $('runList').innerHTML = runs.length ? runs.slice().reverse().slice(0, 50).map((r, i) => {
+  $('runList').innerHTML = cfg.runs.length ? cfg.runs.slice().reverse().slice(0, 50).map(r => {
     const s = styleOf(r), k = kml(r), dur = (r.t1 - r.t0) / 1000;
     return '<details class="run"><summary><span>' + new Date(r.t0).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' }) + ' ' +
       new Date(r.t0).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) + '</span><span><b>' + r.km.toFixed(1) + '</b> km</span><span><b>' +
-      (k ? k.toFixed(1) : '--') + '</b> km/L</span>' + (s ? '<span class="lvl lvl-' + s[0] + '">' + s[1] + '</span>' : '<span class="muted small">curta</span>') + '</summary>' +
-      '<p class="small muted">' + mins(dur) + ' · ' + FUEL_NAME[r.fuel] + ' · R$ ' + (r.L * r.price).toFixed(2) + ' · máx. ' + Math.round(r.vmax) + ' km/h · distância pelo ' + r.src.toUpperCase() +
+      (k ? k.toFixed(1) : '--') + '</b> km/L</span>' + (s ? '<span class="lvl lvl-' + s[0] + '">' + s[1] + '</span>' : '<span class="muted small">curta</span>') +
+      (r.sim ? '<span class="lvl lvl-info">simulação</span>' : '') + '</summary>' +
+      '<p class="small muted">' + mins(dur) + ' · ' + FUEL_NAME[r.fuel] + ' · R$ ' + (r.L * r.price).toFixed(2) + ' · máx. ' + Math.round(r.vmax) + ' km/h' +
+      (r.glat ? ' · curvas até ' + r.glat.toFixed(2).replace('.', ',') + ' g' : '') + ' · distância pelo ' + r.src.toUpperCase() +
       (profOf(r.car) ? ' · ' + esc(profName(r.car)) : '') + '</p>' +
-      '<ul class="small">' + tipsOf(r).map(t => '<li>' + t + '</li>').join('') + '</ul></details>';
+      '<ul class="small">' + tipsOf(r).map(t => '<li>' + t + '</li>').join('') + '</ul>' +
+      (recHas(r.t0) ? '<div class="row"><button class="mini" data-replay="' + r.t0 + '">▶ Rever esta viagem</button></div>' : '') + '</details>';
   }).join('') : '<p class="empty">Nenhuma viagem ainda. Conecte o adaptador no carro e dirija: ao desconectar, a viagem aparece aqui.</p>';
   const fc = fuelCompare();
   $('fuelCmp').innerHTML = fc.html; $('fuelVerdict').innerHTML = fc.verdict;
@@ -171,7 +198,10 @@ function renderRuns(){
 function bindRuns(){
   $('runAuto').checked = cfg.runOpt.auto;
   $('runAuto').onchange = e => { cfg.runOpt.auto = e.target.checked; saveCfg(); if (e.target.checked) runStart(); runUi(); };
-  $('btnRunClr').onclick = () => { if (confirm('Apagar todo o histórico de viagens?')){ cfg.runs = []; saveCfg(); renderRuns(); } };
+  $('btnRunClr').onclick = () => { if (confirm('Apagar todo o histórico de viagens, com as gravações?')){ cfg.runs = []; saveCfg(); recClear(); renderRuns(); } };
+  $('btnRunGo').onclick = () => run ? runEnd() : runStart(true);
+  $('runMotion').onchange = e => motionToggle(e.target.checked);
+  $('runList').onclick = e => { const b = e.target.closest('[data-replay]'); if (b) replayOpen(+b.dataset.replay); };
   $('fPrice').value = cfg.vehicle.price; $('fFuel').value = cfg.vehicle.fuel === 'eth' ? 'eth' : 'gas';
   $('btnFill').onclick = () => {
     const n = id => parseFloat(String($(id).value).replace(',', '.'));
@@ -196,14 +226,15 @@ addEventListener('tab', e => { if (e.detail === 'viagens') renderRuns(); });
 addEventListener('connected', runUi);
 
 EXPORTS.viagens = ['Histórico de viagens e abastecimentos', () => {
-  const all = sum(cfg.runs), fc = fuelCompare();
+  const all = sum(cfg.runs.filter(r => !r.sim)), fc = fuelCompare();
   return {
-    criteriosDoEstilo: { aceleracaoForte_ms2: ST.acc, frenagemForte_ms2: ST.brk, giroAlto_rpm: ST.rpm, velocidadeAlta_kmh: ST.fast,
-      pePesado: 'mais de 4 acelerações/frenagens fortes a cada 10 km ou mais de 15% do tempo acima do giro alto', peLeve: 'menos de 1,5 a cada 10 km e menos de 5% acima do giro alto' },
+    criteriosDoEstilo: { aceleracaoForte_ms2: ST.acc, frenagemForte_ms2: ST.brk, curvaForte_g: ST.lat, curvaForte_s: ST.latMs / 1000, giroAlto_rpm: ST.rpm, velocidadeAlta_kmh: ST.fast,
+      pePesado: 'mais de 4 acelerações, frenagens ou curvas fortes a cada 10 km ou mais de 15% do tempo acima do giro alto', peLeve: 'menos de 1,5 a cada 10 km e menos de 5% acima do giro alto' },
     resumo: { viagens: all.n, km: +all.km.toFixed(1), litrosEstimados: +all.L.toFixed(2), kmPorLitro: all.kml ? +all.kml.toFixed(1) : null },
     viagens: cfg.runs.map(r => ({ inicio: new Date(r.t0).toISOString(), minutos: Math.round((r.t1 - r.t0) / 60000), km: +r.km.toFixed(2), litros: +r.L.toFixed(3),
       kmPorLitro: kml(r) ? +kml(r).toFixed(1) : null, combustivel: FUEL_NAME[r.fuel], estilo: styleOf(r)?.[1] || null, paradoLigado_s: Math.round(r.idle_s),
-      acimaDoGiroAlto_s: Math.round(r.hirpm_s), aceleracoesFortes: r.acc, arrancadasFortes: r.arr, frenagensFortes: r.brk, velMax: r.vmax, dicas: tipsOf(r) })),
+      acimaDoGiroAlto_s: Math.round(r.hirpm_s), aceleracoesFortes: r.acc, arrancadasFortes: r.arr, frenagensFortes: r.brk, curvasFortes: r.crv,
+      forcaLateralMax_g: r.glat || null, velMax: r.vmax, simulacao: r.sim, dicas: tipsOf(r) })),
     abastecimentos: cfg.fills.map(f => ({ data: new Date(f.t).toISOString(), hodometro: f.odo, litros: f.L, precoLitro: f.price, combustivel: FUEL_NAME[f.fuel], tanqueCheio: f.full, carro: profOf(f.car) ? profName(f.car) : f.car })),
     consumoRealEntreTanquesCheios: fc.iv.map(x => ({ km: x.km, litros: +x.L.toFixed(2), kmPorLitro: +x.kml.toFixed(2), reaisPorKm: +x.rkm.toFixed(3), combustivel: FUEL_NAME[x.fuel] }))
   };

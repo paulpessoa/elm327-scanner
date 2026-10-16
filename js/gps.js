@@ -19,6 +19,7 @@ function gpsFix(p){
   const c = p.coords, now = Date.now();
   const pt = { lat: c.latitude, lon: c.longitude, acc: c.accuracy, t: p.timestamp || now };
   gps.fix = pt;
+  dispatchEvent(new CustomEvent('gpsfix', { detail: pt }));
   store.set('c:gacc', Math.round(c.accuracy), now);
   if (c.accuracy > GPS_ACC){ gps.msg = 'Sinal fraco (±' + Math.round(c.accuracy) + ' m): distância pausada'; gpsUi(); return; }
   gps.msg = 'GPS ok (±' + Math.round(c.accuracy) + ' m)';
