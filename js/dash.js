@@ -266,7 +266,7 @@ function fillDlg(){
   $('aOn').checked = !!al?.on; $('aMin').value = al?.min ?? ''; $('aMax').value = al?.max ?? '';
   $('aUnit').textContent = d?.unit ? '(' + d.unit + ')' : '';
   $('wNote').textContent = d && !supported(d.key) ? 'O carro não informa este sensor: o mostrador vai ficar vazio.' :
-    d?.calc ? 'Valor calculado pelo app a partir de outros sensores. Ajuste o carro e o combustível em Ajustes.' : '';
+    d?.calc ? 'Valor calculado pelo app a partir de outros sensores. Ajuste o carro e o combustível em Veículos.' : '';
 }
 const optInput = el => el.value.trim() === '' ? null : optNum(parseFloat(el.value.replace(',', '.')));
 function readDlg(){

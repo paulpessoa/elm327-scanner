@@ -157,7 +157,7 @@ function renderRuns(){
       new Date(r.t0).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) + '</span><span><b>' + r.km.toFixed(1) + '</b> km</span><span><b>' +
       (k ? k.toFixed(1) : '--') + '</b> km/L</span>' + (s ? '<span class="lvl lvl-' + s[0] + '">' + s[1] + '</span>' : '<span class="muted small">curta</span>') + '</summary>' +
       '<p class="small muted">' + mins(dur) + ' · ' + FUEL_NAME[r.fuel] + ' · R$ ' + (r.L * r.price).toFixed(2) + ' · máx. ' + Math.round(r.vmax) + ' km/h · distância pelo ' + r.src.toUpperCase() +
-      (CARS[r.car] ? ' · ' + esc(CARS[r.car].label) : '') + '</p>' +
+      (profOf(r.car) ? ' · ' + esc(profName(r.car)) : '') + '</p>' +
       '<ul class="small">' + tipsOf(r).map(t => '<li>' + t + '</li>').join('') + '</ul></details>';
   }).join('') : '<p class="empty">Nenhuma viagem ainda. Conecte o adaptador no carro e dirija: ao desconectar, a viagem aparece aqui.</p>';
   const fc = fuelCompare();
@@ -204,7 +204,7 @@ EXPORTS.viagens = ['Histórico de viagens e abastecimentos', () => {
     viagens: cfg.runs.map(r => ({ inicio: new Date(r.t0).toISOString(), minutos: Math.round((r.t1 - r.t0) / 60000), km: +r.km.toFixed(2), litros: +r.L.toFixed(3),
       kmPorLitro: kml(r) ? +kml(r).toFixed(1) : null, combustivel: FUEL_NAME[r.fuel], estilo: styleOf(r)?.[1] || null, paradoLigado_s: Math.round(r.idle_s),
       acimaDoGiroAlto_s: Math.round(r.hirpm_s), aceleracoesFortes: r.acc, arrancadasFortes: r.arr, frenagensFortes: r.brk, velMax: r.vmax, dicas: tipsOf(r) })),
-    abastecimentos: cfg.fills.map(f => ({ data: new Date(f.t).toISOString(), hodometro: f.odo, litros: f.L, precoLitro: f.price, combustivel: FUEL_NAME[f.fuel], tanqueCheio: f.full, carro: CARS[f.car]?.nome || f.car })),
+    abastecimentos: cfg.fills.map(f => ({ data: new Date(f.t).toISOString(), hodometro: f.odo, litros: f.L, precoLitro: f.price, combustivel: FUEL_NAME[f.fuel], tanqueCheio: f.full, carro: profOf(f.car) ? profName(f.car) : f.car })),
     consumoRealEntreTanquesCheios: fc.iv.map(x => ({ km: x.km, litros: +x.L.toFixed(2), kmPorLitro: +x.kml.toFixed(2), reaisPorKm: +x.rkm.toFixed(3), combustivel: FUEL_NAME[x.fuel] }))
   };
 }];

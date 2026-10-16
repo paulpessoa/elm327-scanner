@@ -1,8 +1,4 @@
 /* ============ Início ============ */
-$('btnBle').onclick = () => connect(connectBLE);
-$('btnSerial').onclick = () => connect(connectSerial);
-$('btnDemo').onclick = () => connect(async () => connectDemo());
-$('btnOff').onclick = disconnect;
 addEventListener('resize', draw);
 
 // Exportações novas (as das abas antigas ficam em core.js)
@@ -31,5 +27,6 @@ draw();
 bindVehicle(); bindAlertList(); renderAlertList(); bindOutsideSettings(); lamBindCtl(); bindBackup(); bindGps(); bindCars(); bindRuns(); bindMaint(); setMode(cfg.simple);
 if (cfg.vehicle.dist === 'gps') gpsStart();
 renderDash();
+showTab(location.hash.slice(1));
 
 if ('serviceWorker' in navigator && isSecureContext) navigator.serviceWorker.register('sw.js').catch(() => {});

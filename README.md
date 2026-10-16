@@ -16,12 +16,14 @@ Para chegar na oficina sabendo o que o carro está dizendo. O app lê o que a ce
 É seguro por natureza: o OBD-II genérico serve para **ler**. A única escrita que o app faz é apagar códigos de falha, e só quando você confirma. Reprogramar módulos, codificar peças ou mexer em imobilizador exige ferramentas e códigos de acesso da montadora, que este app não tem nem tenta usar. Ele não substitui o mecânico: é o "exame" que você leva para a consulta.
 
 ## O que faz
+- **Feito para o suporte do carro**: barra fixa embaixo (Painel, Viagens, Falhas, Ferramentas, Ajustes), em pé ou deitado, e um botão só para conectar. O botão Voltar do celular navega entre as telas.
+- **Veículos**: cada carro tem os próprios dados (consumo, combustível, preço, calibração, alertas, viagem, linha de base, manutenção e abastecimentos). Troca tocando no nome do carro no topo. O painel é o mesmo para todos.
 - **Painel personalizável** (inspirado nos apps de painel de carro): várias páginas, mostradores de **ponteiro, arco, digital, barra, barra vertical e gráfico**, cada um com escala, cor, tamanho, marca de pico, mín/méd/máx e **histórico embutido** (10 s a 15 min). Toque e segure para configurar. Tela cheia deitada para usar no suporte.
 - **Modo simples** (padrão em instalação nova): um “Tudo certo / Atenção / Procure um mecânico” e quatro cartões grandes (água, bateria, consumo agora e média). O painel completo continua a um toque.
 - **Falhas conferidas ao conectar**: lê os códigos armazenados e pendentes, avisa quando aparece um código novo e explica os mais comuns em português simples.
 - **Botão “i” em cada sensor**: explica em linguagem simples o que é o valor, se está normal agora (com motor frio/quente, lenta ou andando), causas comuns quando está fora e a comparação com a linha de base do seu carro.
 - **Viagens**: uma por conexão, com km, km/L, custo, tempo parado, giro alto, acelerações/frenagens fortes, avaliação do estilo (pé leve, moderado, pesado) e dicas. Comparação de consumo entre estilos.
-- **Quilometragem e trocas** (aba Viagens): km atual do carro (informado ou do último abastecimento, somando o que o app rodou depois) e itens de manutenção com intervalo e última troca, mostrando quanto falta ou há quanto venceu. Cada carro tem a sua ficha.
+- **Quilometragem e trocas** (tela Viagens): km atual do carro (informado ou do último abastecimento, somando o que o app rodou depois) e itens de manutenção com intervalo e última troca, mostrando quanto falta ou há quanto venceu. Cada carro tem a sua ficha.
 - **Abastecimentos**: hodômetro e litros no posto dão o km/L real entre tanques cheios e mostram, no seu carro, até quantos % do preço da gasolina o etanol compensa.
 - **Alertas por sensor** (mínimo e máximo): o mostrador fica vermelho, toca, vibra e manda notificação do sistema. Tem atraso e histerese para não ficar disparando no limite.
 - **Sondas lambda**: osciloscópio da pré e da pós-catalisador com leitura prioritária, trocas por 10 s, frequência, amplitude, tempo no rico, tempo de resposta, **índice do catalisador**, diagnóstico automático (só julga em malha fechada) e **teste de resposta** (acelerar e soltar). Suporta sondas de banda larga.
@@ -32,8 +34,8 @@ Para chegar na oficina sabendo o que o carro está dizendo. O app lê o que a ce
 - **Ficha**: versão, teste de clone, protocolo, PIDs suportados, padrão OBD, combustível, VIN e serviços GATT
 - **Sensores**: todos os PIDs do modo 01 que a ECU suporta, com gravação em CSV (`;` e vírgula decimal, para o Excel em português)
 - **Falhas**: lê (`03`), pendentes (`07`) e apaga (`04`) códigos; monitores de prontidão e congelamento (`02`)
-- **C3, Mobi e Duster**: perfis do Citroën C3 2010 1.4 TU3JP, Fiat Mobi 1.0 (Fire Evo ou Firefly, manual, direção hidráulica) e Renault Duster 2018 (1.6 SCe ou 2.0, manual, 4x2). Cada um com **linha de base**: 2 min de marcha lenta gravados no próprio carro, para comparar depois.
-- **Exportar e perguntar à IA** em toda tela; **Relatório completo** junta tudo num JSON
+- **Modelos com guia**: Citroën C3 2010 1.4 TU3JP, Fiat Mobi 1.0 (Fire Evo ou Firefly, manual, direção hidráulica) e Renault Duster 2018 (1.6 SCe ou 2.0, manual, 4x2), com cilindrada, referências e roteiro de teste. Qualquer veículo tem **linha de base**: 2 min de marcha lenta gravados no próprio carro, para comparar depois.
+- **Compartilhar e perguntar à IA** pelo botão ⤴ do topo: os dados da tela atual ou o **Relatório completo**, num JSON
 - **Backup**: exporta e importa painéis, alertas, viagem e ajustes para levar a outro aparelho
 - **Modo demonstração**: um ELM327 simulado com motor virtual (CAN), para testar sem carro
 - Funciona **offline** e pode ser instalado como app (PWA)
@@ -50,11 +52,12 @@ Um único laço (`js/engine.js`) atende todas as telas. Cada tela pede os sensor
 | `js/engine.js` | Laço de leitura, multi-PID, histórico, sensores calculados |
 | `js/gauges.js`, `js/dash.js` | Mostradores e painel |
 | `js/alerts.js`, `js/lambda.js`, `js/outside.js` | Alertas, osciloscópio das sondas, exibição fora do app |
-| `js/gps.js`, `js/cars.js` | Distância pelo GPS; perfis dos carros e linha de base |
+| `js/gps.js`, `js/cars.js` | Distância pelo GPS; veículos, catálogo de modelos e linha de base |
 | `js/maint.js` | Quilometragem e trocas de manutenção |
 | `js/health.js` | Modo simples, verificação de falhas ao conectar e códigos explicados |
 | `js/explain.js`, `js/trips.js` | Explicação de cada sensor; viagens, estilo de direção, dicas e abastecimentos |
-| `js/settings.js`, `js/demo.js`, `js/main.js` | Ajustes/backup, simulador, inicialização |
+| `js/settings.js`, `js/demo.js` | Consumo do veículo, viagem e backup; simulador |
+| `js/nav.js`, `js/main.js` | Barra de baixo, conectar e compartilhar; inicialização |
 | `sw.js`, `manifest.webmanifest` | Offline, notificações e instalação |
 
 ## Segurança e privacidade

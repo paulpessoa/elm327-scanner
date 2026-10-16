@@ -15,41 +15,31 @@
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
-<div id="alertBar" class="alertbar" role="alert" hidden></div>
+<header class="top">
+  <div class="tbar">
+    <h1 class="sr">ELM327 Scanner</h1>
+    <button id="carChip" class="carchip" data-go="perfis" title="Trocar de veículo">
+      <b><span id="carChipTxt">Meu carro</span> ▾</b>
+      <small><span id="dot" class="dot"></span><span id="statusTxt">Desconectado</span></small>
+    </button>
+    <button id="btnShare" class="ibtn" aria-label="Compartilhar ou perguntar à IA" title="Compartilhar ou perguntar à IA">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3M7 8l5-5 5 5M5 13v7h14v-7"/></svg>
+    </button>
+    <button id="btnConn" class="primary">Conectar</button>
+  </div>
+  <div id="alertBar" class="alertbar" role="alert" hidden></div>
+</header>
+
 <main>
-  <h1>ELM327 Scanner</h1>
-  <p class="sub">Painel do carro, sondas lambda, sensores, códigos de falha e consumo. Tudo no navegador, sem instalar nada e sem conta: seus dados ficam só neste aparelho.</p>
-
   <div id="banner" class="banner" role="alert"></div>
-
-  <div class="status" aria-live="polite"><span id="dot" class="dot"></span><span id="statusTxt">Desconectado</span></div>
   <div id="healthBar" class="healthbar" role="alert" hidden></div>
 
-  <div class="row">
-    <button id="btnBle" class="primary">Conectar via BLE</button>
-    <button id="btnSerial">Conectar via Serial / BT clássico</button>
-    <button id="btnDemo">Modo demonstração</button>
-    <button id="btnOff" data-conn disabled>Desconectar</button>
-  </div>
-
-  <nav class="tabs" role="tablist">
-    <button role="tab" data-tab="painel" aria-selected="true">Painel</button>
-    <button role="tab" data-tab="viagens" aria-selected="false">Viagens</button>
-    <button role="tab" data-tab="sondas" aria-selected="false">Sondas</button>
-    <button role="tab" data-tab="vivo" aria-selected="false">Sensores</button>
-    <button role="tab" data-tab="tensao" aria-selected="false">Tensão</button>
-    <button role="tab" data-tab="falhas" aria-selected="false">Falhas</button>
-    <button role="tab" data-tab="ficha" aria-selected="false">Ficha</button>
-    <button role="tab" data-tab="c3" aria-selected="false">C3</button>
-    <button role="tab" data-tab="mobi" aria-selected="false">Mobi</button>
-    <button role="tab" data-tab="duster" aria-selected="false">Duster</button>
-    <button role="tab" data-tab="ajustes" aria-selected="false">Ajustes</button>
-    <button role="tab" data-tab="ref" aria-selected="false">Referência</button>
-    <button role="tab" data-tab="log" aria-selected="false">Log</button>
-  </nav>
-
   <!-- PAINEL -->
-  <section id="painel" class="tab on" role="tabpanel">
+  <section id="painel" class="tab on" role="region" aria-label="Painel">
+    <div id="intro" class="intro">
+      <p><b>Painel do carro, falhas, consumo e sondas lambda</b>, direto no navegador. Sem instalar nada e sem conta: seus dados ficam só neste aparelho.</p>
+      <p class="small muted">Coloque o adaptador ELM327 na tomada OBD do carro, ligue a chave e toque em <b>Conectar</b>. Sem adaptador, escolha <b>Modo demonstração</b>.</p>
+    </div>
     <div id="modeChips" class="chips modes" role="tablist" aria-label="Tipo de painel">
       <button class="chip" role="tab" data-mode="simple" aria-selected="false">Simples</button>
       <button class="chip" role="tab" data-mode="full" aria-selected="false">Completo</button>
@@ -77,20 +67,14 @@
       <div id="grid" class="grid"></div>
     </div>
     <p id="dashHint" class="small muted">Toque e segure um mostrador (ou clique duas vezes) para escolher o sensor, o tipo de mostrador, a escala, a cor, o histórico e os alertas.</p>
-    <h3>Ver fora do app</h3>
     <div class="row outrow">
       <button id="btnWake">☀ Manter tela ligada</button>
-      <button id="btnPip">◳ Janela flutuante</button>
-      <button id="btnLock">🔒 Tela bloqueada</button>
-      <button id="btnNotif">🔔 Notificação fixa</button>
-      <button id="btnGps">📍 Ligar GPS</button>
+      <button data-go="ajustes" data-at="fora">Ver fora do app…</button>
     </div>
-    <p class="small muted">Os sensores mostrados fora do app são escolhidos em <b>Ajustes</b>. A janela flutuante fica por cima de outros apps (mapas, música). “Tela bloqueada” usa o controle de mídia do Android para mostrar os valores sem desbloquear.</p>
-    <div class="row" data-export="painel"></div>
   </section>
 
   <!-- VIAGENS -->
-  <section id="viagens" class="tab" role="tabpanel">
+  <section id="viagens" class="tab" role="region" aria-label="Viagens">
     <p class="small">Cada vez que você conecta o adaptador, o app grava uma viagem: distância, consumo, quanto tempo ficou parado e como foi o pé no acelerador. Ao desconectar, ela aparece aqui com dicas.</p>
     <p id="runNow" class="small muted" aria-live="polite"></p>
     <label class="small chk"><input type="checkbox" id="runAuto"> Gravar viagens automaticamente ao conectar</label>
@@ -98,7 +82,7 @@
     <h2>Resumo</h2>
     <div id="runSum" class="stats four"></div>
     <div class="tw"><table id="runStyle"></table></div>
-    <p class="small muted">O km/L das viagens usa litros <b>calculados</b> (veja Ajustes). Como todas usam o mesmo cálculo, a comparação entre elas é justa: dá para ver quanto o pé pesado custa no <i>seu</i> carro.</p>
+    <p class="small muted">O km/L das viagens usa litros <b>calculados</b> (veja Veículos). Como todas usam o mesmo cálculo, a comparação entre elas é justa: dá para ver quanto o pé pesado custa no <i>seu</i> carro.</p>
 
     <h2>Viagens</h2>
     <div id="runList"></div>
@@ -159,11 +143,46 @@
       <li><b>Banguela não economiza:</b> em ponto morto o motor precisa de combustível para ficar ligado; engatado e sem acelerar, a injeção corta.</li>
       <li><b>Manutenção</b> em dia (filtro de ar, velas, óleo). Luz de injeção acesa quase sempre aumenta o consumo.</li>
     </ul>
-    <div class="row" data-export="viagens"></div>
+  </section>
+
+  <!-- FALHAS -->
+  <section id="falhas" class="tab" role="region" aria-label="Falhas">
+    <div class="row">
+      <button id="btnDtc" class="primary" data-conn disabled>Ler códigos (03)</button>
+      <button id="btnDtcPend" data-conn disabled>Pendentes (07)</button>
+      <button id="btnDtcClear" class="danger" data-conn disabled>Apagar códigos (04)</button>
+    </div>
+    <div class="row">
+      <button id="btnMon" data-conn disabled>Monitores de prontidão</button>
+      <button id="btnFreeze" data-conn disabled>Congelamento da falha (02)</button>
+    </div>
+    <div id="dtcOut"><div class="empty">Nenhuma leitura feita ainda.</div></div>
+    <details>
+      <summary>Como ler um código (ex.: P0301)</summary>
+      <div class="tw"><table>
+        <tr><td><code>P</code>/<code>C</code>/<code>B</code>/<code>U</code></td><td>Motor e câmbio / Chassi / Carroceria / Rede de comunicação</td></tr>
+        <tr><td>2º dígito</td><td><code>0</code> genérico (igual em todas as marcas) · <code>1</code> específico da montadora</td></tr>
+        <tr><td>3º dígito (P)</td><td>1–2 ar/combustível · 3 ignição e falha de combustão · 4 emissões · 5 marcha lenta · 6 ECU · 7–9 câmbio</td></tr>
+        <tr><td>Exemplo</td><td><code>P0301</code> = falha de combustão no cilindro 1</td></tr>
+      </table></div>
+    </details>
+  </section>
+
+  <!-- FERRAMENTAS -->
+  <section id="ferramentas" class="tab" role="region" aria-label="Ferramentas">
+    <p class="small muted">Diagnóstico mais detalhado. No dia a dia, o Painel e as Falhas bastam.</p>
+    <div class="tools">
+      <button data-go="sondas"><b>Sondas lambda</b><span>Osciloscópio, índice do catalisador e teste de resposta</span></button>
+      <button data-go="vivo"><b>Sensores</b><span>Tudo o que a central informa, ao vivo, com gravação em CSV</span></button>
+      <button data-go="tensao"><b>Tensão</b><span>Bateria e alternador, com gráfico e calibração</span></button>
+      <button data-go="ficha"><b>Ficha</b><span>Adaptador, protocolo, sensores suportados e chassi</span></button>
+      <button data-go="log"><b>Log</b><span>Conversa com o adaptador e comando manual</span></button>
+      <button data-go="ref"><b>Referência</b><span>Conector, protocolos, comandos e problemas comuns</span></button>
+    </div>
   </section>
 
   <!-- SONDAS -->
-  <section id="sondas" class="tab" role="tabpanel">
+  <section id="sondas" class="tab" role="region" data-parent="ferramentas" data-title="Sondas lambda">
     <p class="small muted">Osciloscópio das sondas lambda antes (pré) e depois (pós) do catalisador. As duas são lidas com prioridade, em toda volta da leitura, para mostrar a oscilação em tempo real.</p>
     <div class="row">
       <button id="btnLam" class="primary" data-conn disabled>▶ Iniciar leitura das sondas</button>
@@ -198,7 +217,6 @@
     <p class="small">Motor quente em marcha lenta: toque no botão, acelere fundo até ~3.000 rpm e solte. A sonda boa vai acima de 0,8 V ao acelerar e abaixo de 0,15 V no corte de combustível.</p>
     <div class="row"><button id="btnLamSnap">Iniciar teste de resposta (10 s)</button></div>
     <div id="lamSnapOut"></div>
-    <div class="row" data-export="sondas"></div>
     <details>
       <summary>Como ler o osciloscópio</summary>
       <div class="tw"><table>
@@ -212,8 +230,26 @@
     </details>
   </section>
 
+  <!-- AO VIVO -->
+  <section id="vivo" class="tab" role="region" data-parent="ferramentas" data-title="Sensores">
+    <p class="small muted">Lê pelo modo 01 do OBD-II os sensores que a central do motor disponibiliza. “n/s” = o carro não fornece esse dado. As referências valem para motor quente em marcha lenta.</p>
+    <div class="row">
+      <select id="liveMode" aria-label="Quais sensores ler">
+        <option value="main">Principais (atualiza mais rápido)</option>
+        <option value="all">Todos os suportados pelo carro</option>
+      </select>
+      <button id="btnLive" class="primary" data-conn disabled>Iniciar leitura</button>
+    </div>
+    <div class="row">
+      <button id="btnRec" data-conn disabled>Gravar CSV</button>
+      <button id="btnCsv" disabled>Baixar CSV (0 linhas)</button>
+    </div>
+    <p id="liveInfo" class="small muted" aria-live="polite"></p>
+    <div id="tiles" class="tiles"></div>
+  </section>
+
   <!-- TENSÃO -->
-  <section id="tensao" class="tab" role="tabpanel">
+  <section id="tensao" class="tab" role="region" data-parent="ferramentas" data-title="Tensão">
     <div class="gauge" aria-live="polite">
       <div class="volt"><span id="v">--.-</span><small>V</small></div>
       <div id="verdict" class="verdict">Conecte o scanner para começar</div>
@@ -228,7 +264,6 @@
       <button id="btnRead" data-conn disabled>Ler uma vez</button>
       <button id="btnLoop" data-conn disabled>Monitorar (1 s)</button>
     </div>
-    <div class="row" data-export="tensao"></div>
 
     <details>
       <summary>Como interpretar</summary>
@@ -255,252 +290,31 @@
   </section>
 
   <!-- FICHA -->
-  <section id="ficha" class="tab" role="tabpanel">
+  <section id="ficha" class="tab" role="region" data-parent="ferramentas" data-title="Ficha">
     <p class="small muted">Consulta o adaptador e o carro e monta a ficha técnica. Para ter os dados do veículo, a chave precisa estar em ON (ou o motor ligado).</p>
     <div class="row">
       <button id="btnFicha" class="primary" data-conn disabled>Gerar ficha completa</button>
     </div>
-    <div class="row" data-export="ficha"></div>
     <p id="fichaStep" class="small muted" aria-live="polite"></p>
     <div id="fichaOut"><div class="empty">Conecte e toque em “Gerar ficha completa”.</div></div>
   </section>
 
-  <!-- AO VIVO -->
-  <section id="vivo" class="tab" role="tabpanel">
-    <p class="small muted">Lê pelo modo 01 do OBD-II os sensores que a central do motor disponibiliza. “n/s” = o carro não fornece esse dado. As referências valem para motor quente em marcha lenta.</p>
+  <!-- LOG -->
+  <section id="log" class="tab" role="region" data-parent="ferramentas" data-title="Log">
     <div class="row">
-      <select id="liveMode" aria-label="Quais sensores ler">
-        <option value="main">Principais (atualiza mais rápido)</option>
-        <option value="all">Todos os suportados pelo carro</option>
-      </select>
-      <button id="btnLive" class="primary" data-conn disabled>Iniciar leitura</button>
+      <button id="btnLogClr">Limpar log</button>
+      <label class="small muted chk"><input type="checkbox" id="logPoll"> Registrar também as leituras contínuas</label>
     </div>
+    <pre id="logOut"></pre>
+    <h3>Comando manual</h3>
     <div class="row">
-      <button id="btnRec" data-conn disabled>Gravar CSV</button>
-      <button id="btnCsv" disabled>Baixar CSV (0 linhas)</button>
+      <input id="manCmd" style="flex:1 1 160px" placeholder="ex.: ATDP ou 010C" aria-label="Comando manual" autocapitalize="characters">
+      <button id="btnMan" data-conn disabled>Enviar</button>
     </div>
-    <div class="row" data-export="sensores"></div>
-    <p id="liveInfo" class="small muted" aria-live="polite"></p>
-    <div id="tiles" class="tiles"></div>
-  </section>
-
-  <!-- FALHAS -->
-  <section id="falhas" class="tab" role="tabpanel">
-    <div class="row">
-      <button id="btnDtc" class="primary" data-conn disabled>Ler códigos (03)</button>
-      <button id="btnDtcPend" data-conn disabled>Pendentes (07)</button>
-      <button id="btnDtcClear" class="danger" data-conn disabled>Apagar códigos (04)</button>
-    </div>
-    <div class="row">
-      <button id="btnMon" data-conn disabled>Monitores de prontidão</button>
-      <button id="btnFreeze" data-conn disabled>Congelamento da falha (02)</button>
-    </div>
-    <div class="row" data-export="falhas"></div>
-    <div id="dtcOut"><div class="empty">Nenhuma leitura feita ainda.</div></div>
-    <details>
-      <summary>Como ler um código (ex.: P0301)</summary>
-      <div class="tw"><table>
-        <tr><td><code>P</code>/<code>C</code>/<code>B</code>/<code>U</code></td><td>Motor e câmbio / Chassi / Carroceria / Rede de comunicação</td></tr>
-        <tr><td>2º dígito</td><td><code>0</code> genérico (igual em todas as marcas) · <code>1</code> específico da montadora</td></tr>
-        <tr><td>3º dígito (P)</td><td>1–2 ar/combustível · 3 ignição e falha de combustão · 4 emissões · 5 marcha lenta · 6 ECU · 7–9 câmbio</td></tr>
-        <tr><td>Exemplo</td><td><code>P0301</code> = falha de combustão no cilindro 1</td></tr>
-      </table></div>
-    </details>
-  </section>
-
-  <!-- MEU C3 -->
-  <section id="c3" class="tab" role="tabpanel">
-    <h2>Citroën C3 2010 · 1.4 8V TU3JP</h2>
-    <dl class="kv">
-      <dt>Motor</dt><dd>TU3JP · 1.4 (1.360 cm³) · 8 válvulas · 4 cilindros · flex no Brasil</dd>
-      <dt>Tomada OBD</dt><dd>Embaixo do painel, do lado do motorista, perto da caixa de fusíveis. Às vezes fica atrás de uma tampinha.</dd>
-      <dt>Protocolo</dt><dd>Detectado sozinho pelo app. Se falhar, ele tenta um por um (CAN, KWP e ISO).</dd>
-    </dl>
-
-    <div class="carbox" data-car="c3"></div>
-
-    <h3>Relatório completo</h3>
-    <p class="small">Junta ficha, falhas, sensores, tensão, viagem e a linha de base num JSON só, pronto para mandar para uma IA ou para um mecânico.</p>
-    <div class="row" data-export="tudo"></div>
-
-    <h3>O que o ELM327 lê neste carro</h3>
-    <p class="small">Só a central do <b>motor</b>, pelo OBD-II genérico: sensores, códigos de falha do motor, monitores, congelamento de falha e dados da ECU.</p>
-    <p class="small muted">ABS, airbag, BSI (a central da carroceria), painel, direção e reset de revisão usam o protocolo próprio da PSA. Para esses módulos é preciso o Diagbox/Lexia (a ferramenta oficial) ou um app com perfil PSA.</p>
-
-    <h3>Valores de referência (motor quente, marcha lenta)</h3>
-    <div class="tw"><table>
-      <tr><th>Sensor</th><th>Normal</th><th>Se estiver fora</th></tr>
-      <tr><td>RPM</td><td>750 – 950</td><td>Oscilando muito: corpo de borboleta sujo ou entrada falsa de ar</td></tr>
-      <tr><td>Temperatura do motor</td><td>85 – 105 °C</td><td>Não passa de 75 °C: válvula termostática aberta · acima de 110 °C: arrefecimento</td></tr>
-      <tr><td>Ajuste curto B1</td><td>−10 a +10 %</td><td>Oscilar em torno de zero é normal</td></tr>
-      <tr><td>Ajuste longo B1</td><td>−10 a +10 %</td><td>Acima de +15 %: mistura pobre (entrada de ar, bomba fraca, bico sujo) · abaixo de −15 %: mistura rica</td></tr>
-      <tr><td>Pressão do coletor (MAP)</td><td>25 – 45 kPa</td><td>Alta na lenta: entrada de ar ou compressão baixa</td></tr>
-      <tr><td>Avanço de ignição</td><td>5 – 20 °</td><td>Negativo ou instável: detonação ou sensor</td></tr>
-      <tr><td>Sonda O2 B1S1 (antes do catalisador)</td><td>Oscila de 0,1 a 0,9 V várias vezes por segundo</td><td>Parada em 0,4–0,5 V: sonda morta ou malha aberta</td></tr>
-      <tr><td>Sonda O2 B1S2 (depois do catalisador)</td><td>Estável entre 0,5 e 0,8 V</td><td>Oscilando igual à B1S1: catalisador gasto</td></tr>
-      <tr><td>Sistema de combustível</td><td>Malha fechada</td><td>Malha aberta com o motor quente: sonda ou falha</td></tr>
-      <tr><td>Carga do motor</td><td>15 – 35 %</td><td>Alta sem nada ligado: esforço extra ou sensor</td></tr>
-      <tr><td>Tensão (ATRV / ECU)</td><td>13,5 – 14,8 V</td><td>Abaixo de 13 V ligado: alternador</td></tr>
-    </table></div>
-    <p class="small muted">Referências gerais para motor a gasolina ou flex em bom estado. Não são dados de fábrica da PSA. No flex, o ajuste longo muda por alguns quilômetros depois de trocar de combustível, enquanto a ECU reaprende. O percentual de etanol (PID 52) geralmente não é informado: vai aparecer “n/s”.</p>
-
-    <h3>Roteiro do teste</h3>
-    <ol class="steps small">
-      <li><b>Chave em ON, motor desligado:</b> conecte e, na aba <b>Tensão</b>, confira a bateria (≥ 12,4 V).</li>
-      <li>Aba <b>Ficha</b> → <b>Gerar ficha completa</b>. A primeira detecção de protocolo pode levar até 15 s.</li>
-      <li>Aba <b>Falhas</b>: leia os códigos, os monitores e o congelamento <i>antes</i> de apagar qualquer coisa.</li>
-      <li><b>Ligue o motor</b> e espere a temperatura passar de 85 °C (aba <b>Sensores</b>, modo Principais).</li>
-      <li>Troque para <b>Todos os suportados</b>, toque em <b>Gravar CSV</b> e deixe 2 min em marcha lenta.</li>
-      <li>Segure em ~2.500 rpm por 30 s e solte. Pare a gravação e toque em <b>Baixar CSV</b>.</li>
-      <li>Aba <b>Sondas</b> → <b>Iniciar leitura das sondas</b>. Veja a pré oscilar e a pós ficar estável; faça o <b>teste de resposta</b>.</li>
-      <li>Volte aqui e toque em <b>Perguntar à IA</b> no Relatório completo (ou <b>Baixar JSON</b> para guardar).</li>
-    </ol>
-    <p class="small muted">Não use o app com o carro em movimento. Se precisar testar rodando, deixe outra pessoa dirigir.</p>
-  </section>
-
-  <!-- FIAT MOBI -->
-  <section id="mobi" class="tab" role="tabpanel">
-    <h2>Fiat Mobi · manual · direção hidráulica</h2>
-    <p class="small muted">Não sabe qual motor é o seu? Conte os cilindros: o Fire tem 4, o Firefly tem 3 (o ronco é diferente e a tampa do motor indica). Confira no documento do carro ou no manual.</p>
-    <div class="carbox" data-car="mobi"></div>
-
-    <h3>O que o ELM327 lê neste carro</h3>
-    <p class="small">Só a central do <b>motor</b>, pelo OBD-II genérico. O protocolo é detectado sozinho e aparece na aba <b>Ficha</b>.</p>
-    <p class="small muted">ABS, airbag, central da carroceria e painel usam protocolo próprio da Fiat e precisam da ferramenta da concessionária ou de um app com perfil Fiat.</p>
-    <ul class="small">
-      <li><b>Câmbio manual:</b> não há central de câmbio. O OBD não informa a marcha.</li>
-      <li><b>Direção hidráulica:</b> a bomba é tocada pela correia do motor, então virar o volante parado aumenta a carga do motor. Não há sensor da direção no OBD genérico; o efeito aparece no giro e na carga.</li>
-      <li><b>Flex:</b> o percentual de etanol (PID 52) geralmente não é informado: aparece “n/s”. Em Ajustes, escolha o combustível do tanque para a estimativa de consumo.</li>
-    </ul>
-
-    <h3>Teste da direção hidráulica (parado, motor quente)</h3>
-    <ol class="steps small">
-      <li>Painel lendo <b>RPM</b> e <b>Carga do motor</b>, com o carro parado e freio de mão puxado.</li>
-      <li>Vire o volante devagar de um lado ao outro. <b>Não segure no fim do curso</b> por mais de alguns segundos: isso força a bomba.</li>
-      <li>Normal: o giro oscila um pouco e volta, a carga sobe enquanto você vira. Anote os valores que o <i>seu</i> carro mostrou.</li>
-      <li>Se o motor quase apagar, chiar ou a direção pesar: vale olhar correia, nível do fluido e limpeza do corpo de borboleta com o mecânico.</li>
-    </ol>
-    <p class="small muted">O app não tem um valor “de fábrica” para isso: compare com a sua própria medição de hoje daqui a alguns meses.</p>
-
-    <h3>Relatório completo</h3>
-    <div class="row" data-export="tudo"></div>
-  </section>
-
-  <!-- RENAULT DUSTER -->
-  <section id="duster" class="tab" role="tabpanel">
-    <h2>Renault Duster 2018 · manual · 4x2</h2>
-    <p class="small muted">Em 2018 o Duster manual 4x2 saiu com 1.6 16V SCe ou 2.0 16V. Confira no documento do carro ou na tampa do motor.</p>
-    <div class="carbox" data-car="duster"></div>
-
-    <h3>O que o ELM327 lê neste carro</h3>
-    <p class="small">Só a central do <b>motor</b>, pelo OBD-II genérico. O protocolo é detectado sozinho e aparece na aba <b>Ficha</b>.</p>
-    <p class="small muted">ABS, airbag, central da carroceria (UCH) e painel usam o protocolo próprio da Renault. Para esses módulos é preciso a ferramenta oficial (CLIP) ou um app com perfil Renault.</p>
-    <ul class="small">
-      <li><b>Câmbio manual:</b> não há central de câmbio. O OBD não informa a marcha.</li>
-      <li><b>4x2:</b> só tração dianteira; não há módulo de tração 4x4 para ler.</li>
-      <li><b>Flex:</b> o percentual de etanol (PID 52) geralmente não é informado. Em Ajustes, escolha o combustível do tanque.</li>
-    </ul>
-
-    <h3>Relatório completo</h3>
-    <div class="row" data-export="tudo"></div>
-  </section>
-
-  <!-- AJUSTES -->
-  <section id="ajustes" class="tab" role="tabpanel">
-    <h2>Carro e consumo</h2>
-    <div class="row">
-      <label for="carName" class="small muted hint">Carro:</label>
-      <input id="carName" style="flex:1 1 220px" value="Citroën C3 2010 1.4 8V TU3JP flex" aria-label="Carro enviado junto com os dados">
-    </div>
-    <p class="small muted">Nas abas <b>C3</b>, <b>Mobi</b> e <b>Duster</b>, “Usar este carro” preenche o nome e a cilindrada.</p>
-    <p class="small muted">Nenhum desses carros mede o combustível que passa pelo bico: os litros são <b>calculados</b> a partir do ar admitido (sensor MAF ou, sem ele, pela pressão do coletor, giro e temperatura do ar). A eficiência volumétrica é um chute inicial; o que deixa o número confiável é a <b>calibração pelo posto</b>, logo abaixo.</p>
-    <div class="form">
-      <label>Cilindrada (L)<input id="vDisp" type="number" step="0.01" min="0.5" max="8" inputmode="decimal"></label>
-      <label>Eficiência volumétrica (%)<input id="vVe" type="number" step="1" min="40" max="120" inputmode="numeric"></label>
-      <label>Combustível<select id="vFuel"><option value="gas">Gasolina comum (E27)</option><option value="eth">Etanol hidratado</option><option value="mix">Mistura no tanque (flex)</option><option value="diesel">Diesel</option></select></label>
-      <label id="vEthRow">Etanol no tanque (%)<input id="vEth" type="number" step="5" min="0" max="100" inputmode="numeric"></label>
-      <label>Preço por litro (R$)<input id="vPrice" type="number" step="0.01" min="0" max="100" inputmode="decimal"></label>
-      <label>Fator de correção (%)<input id="vCorr" type="number" step="0.5" min="50" max="200" inputmode="decimal"></label>
-      <label>Distância pela<select id="vDist"><option value="obd">Velocidade do carro (OBD)</option><option value="gps">GPS do celular</option></select></label>
-    </div>
-    <div class="row"><button id="btnGps2">📍 Ligar GPS</button><span id="gpsMsg" class="small muted hint" aria-live="polite"></span></div>
-    <p class="small muted">O velocímetro e a velocidade do OBD costumam marcar um pouco a mais que o real. Com o GPS, a distância (e as médias por km) vem do caminho medido pelo celular. Os dois hodômetros correm juntos para você comparar. O GPS gasta bateria e o Android pausa a localização com a tela apagada: use “Manter tela ligada” e deixe o celular no carregador.</p>
-    <p id="fuelSrc" class="small muted"></p>
-    <h3>Viagem</h3>
-    <div id="tripOut" class="stats four"></div>
-    <p id="tripSince" class="small muted"></p>
-    <div class="row"><button id="btnTripReset">Zerar viagem</button></div>
-    <details>
-      <summary>Consumo a cada km rodado</summary>
-      <p class="small">Cada linha é um quilômetro completo: litros gastos naquele km e o km/L dele. A média da viagem é sempre <b>distância ÷ litros</b>, nunca a média das leituras instantâneas.</p>
-      <div class="tw segs"><table id="segOut"></table></div>
-    </details>
-    <details>
-      <summary>Calibrar o consumo pelo posto</summary>
-      <p class="small">Encha o tanque, zere a viagem e rode normalmente (quanto mais, melhor). No posto, encha de novo e digite quantos litros entraram. O app ajusta o fator de correção.</p>
-      <div class="row"><input id="vReal" type="number" step="0.01" min="0" placeholder="litros no posto" aria-label="Litros que entraram no posto" inputmode="decimal"><button id="btnCalib">Calibrar</button></div>
-    </details>
-
-    <h2>Alertas</h2>
-    <p class="small muted">Quando um sensor passa do limite, o mostrador fica vermelho, o celular apita e vibra e, se permitido, aparece uma notificação (inclusive com a tela bloqueada). Os alertas só valem enquanto o app está lendo.</p>
-    <div id="alertList"></div>
-    <div class="row">
-      <select id="aNewSensor" aria-label="Sensor do novo alerta"></select>
-      <input id="aNewMin" type="number" step="any" placeholder="mín." aria-label="Mínimo" class="num">
-      <input id="aNewMax" type="number" step="any" placeholder="máx." aria-label="Máximo" class="num">
-      <button id="btnANew">Adicionar alerta</button>
-    </div>
-    <div class="checks">
-      <label><input type="checkbox" id="ao_sound"> Som</label>
-      <label><input type="checkbox" id="ao_vibrate"> Vibração</label>
-      <label><input type="checkbox" id="ao_notify"> Notificação do sistema</label>
-      <label>Disparar após <input type="number" id="ao_delay" min="0" max="30" step="1" class="num"> s fora do limite</label>
-    </div>
-    <p class="small">Notificações: <b id="notifPerm"></b> <button id="btnNotifPerm" class="mini">Permitir</button> <button id="btnATest" class="mini">Testar alerta</button></p>
-    <h3>Alertas disparados</h3>
-    <div id="alertLogOut"></div>
-    <div class="row"><button id="btnALogClr" class="mini">Limpar lista</button></div>
-
-    <h2>Fora do app</h2>
-    <p class="small">Até 4 sensores para a janela flutuante, a tela bloqueada e a notificação fixa:</p>
-    <div class="form">
-      <label>1º<select id="out0"></select></label><label>2º<select id="out1"></select></label>
-      <label>3º<select id="out2"></select></label><label>4º<select id="out3"></select></label>
-    </div>
-    <details>
-      <summary>O que funciona em cada aparelho</summary>
-      <div class="tw"><table>
-        <tr><th></th><th>Android (Chrome)</th><th>Computador</th><th>iPhone</th></tr>
-        <tr><td>Manter tela ligada</td><td>Sim</td><td>Sim</td><td>Bluefy: depende</td></tr>
-        <tr><td>Janela flutuante</td><td>Sim, por cima de outros apps</td><td>Sim</td><td>Não</td></tr>
-        <tr><td>Tela bloqueada (mídia)</td><td>Sim, no player da tela bloqueada</td><td>Aparece no controle de mídia</td><td>Não</td></tr>
-        <tr><td>Notificação fixa e alertas</td><td>Sim (com o app instalado ou a aba aberta)</td><td>Sim</td><td>Não</td></tr>
-      </table></div>
-      <p class="small muted">Com a tela apagada o Android pode desacelerar a página. Para leitura contínua e confiável no carro, prefira “Manter tela ligada” com o celular no suporte.</p>
-    </details>
-
-    <h2>Backup e outro aparelho</h2>
-    <p class="small">Não há conta nem servidor: painéis, alertas, viagem e ajustes ficam só neste navegador. Para levar a outro celular, exporte o backup e importe lá.</p>
-    <div class="row">
-      <button id="btnBkDl">Baixar backup (.json)</button>
-      <button id="btnBkCopy">Copiar backup</button>
-      <label class="filebtn">Importar arquivo<input id="bkFile" type="file" accept="application/json,.json"></label>
-    </div>
-    <p id="bkMsg" class="small muted" aria-live="polite"></p>
-    <details>
-      <summary>Colar backup</summary>
-      <textarea id="bkText" rows="4" placeholder="Cole aqui o texto do backup" aria-label="Texto do backup"></textarea>
-      <div class="row"><button id="btnBkPaste">Importar texto colado</button></div>
-    </details>
-    <div class="row">
-      <button id="btnInstall" class="primary" hidden>Instalar como app</button>
-      <button id="btnBkReset" class="danger">Apagar dados deste aparelho</button>
-    </div>
-    <p class="small muted">Segurança: o app não envia nada para servidor nenhum. Backups importados são conferidos campo a campo antes de entrar, e a página bloqueia scripts de fora (Content Security Policy).</p>
   </section>
 
   <!-- REFERÊNCIA -->
-  <section id="ref" class="tab" role="tabpanel">
+  <section id="ref" class="tab" role="region" data-parent="ferramentas" data-title="Referência">
     <h2>Conector OBD-II (SAE J1962, 16 pinos)</h2>
     <p class="small muted">Tomada do carro vista de frente, normalmente embaixo do volante.</p>
     <svg class="pin-svg" viewBox="0 0 380 170" role="img" aria-label="Conector OBD-II de 16 pinos visto de frente">
@@ -521,7 +335,7 @@
     <div class="tw"><table>
       <tr><th></th><th>BLE (4.0+)</th><th>Clássico (SPP)</th></tr>
       <tr><td>Como reconhecer</td><td>Não pede PIN. Não aparece nas configurações de Bluetooth do celular, só dentro de apps.</td><td>Pareia pelo sistema com PIN <code>1234</code> ou <code>0000</code></td></tr>
-      <tr><td>Botão aqui</td><td>“Conectar via BLE”</td><td>“Serial / BT clássico” (parear no sistema antes)</td></tr>
+      <tr><td>Botão aqui</td><td>Conectar → “Bluetooth BLE”</td><td>Conectar → “Bluetooth clássico ou USB” (parear no sistema antes)</td></tr>
       <tr><td>Chrome Android</td><td>Funciona</td><td>Depende da versão do Chrome</td></tr>
       <tr><td>Chrome Windows/Mac</td><td>Funciona</td><td>Funciona (Chrome 117+)</td></tr>
       <tr><td>iPhone</td><td>Só pelo navegador Bluefy</td><td>Não funciona</td></tr>
@@ -574,8 +388,8 @@
     <h2>Problemas comuns</h2>
     <div class="tw"><table>
       <tr><th>Sintoma</th><th>O que fazer</th></tr>
-      <tr><td>O adaptador não aparece no BLE</td><td>Provavelmente é Bluetooth clássico. Pareie no sistema e use “Serial”.</td></tr>
-      <tr><td>Samsung (S24 etc.): botões de conectar apagados</td><td>Está no Samsung Internet, que não tem Bluetooth na web. Abra no <b>Chrome</b>.</td></tr>
+      <tr><td>O adaptador não aparece no BLE</td><td>Provavelmente é Bluetooth clássico. Pareie no sistema e use “Bluetooth clássico ou USB”.</td></tr>
+      <tr><td>Samsung (S24 etc.): opções de conectar apagadas</td><td>Está no Samsung Internet, que não tem Bluetooth na web. Abra no <b>Chrome</b>.</td></tr>
       <tr><td>Lista de dispositivos vazia no Android</td><td>Ligue a Localização e permita “Dispositivos próximos” para o Chrome (Configurações → Apps → Chrome → Permissões).</td></tr>
       <tr><td>Funciona num celular e não no outro</td><td>O adaptador atende um aparelho por vez. Desligue o Bluetooth do outro celular e feche apps como Torque ou Car Scanner. Tire e recoloque o adaptador.</td></tr>
       <tr><td>Erro “permissions policy”</td><td>A página está dentro de outra (iframe). Abra o link direto no Chrome.</td></tr>
@@ -585,21 +399,257 @@
     </table></div>
   </section>
 
-  <!-- LOG -->
-  <section id="log" class="tab" role="tabpanel">
-    <div class="row">
-      <button id="btnLogClr">Limpar log</button>
-      <label class="small muted chk"><input type="checkbox" id="logPoll"> Registrar também as leituras contínuas</label>
+  <!-- VEÍCULOS -->
+  <section id="perfis" class="tab" role="region" aria-label="Veículos">
+    <h2>Veículos</h2>
+    <p class="small muted">Cada veículo guarda os próprios dados: consumo, alertas, viagem, linha de base, manutenção e abastecimentos. O painel é o mesmo para todos.</p>
+    <div id="profList" class="plist" role="radiogroup" aria-label="Veículo em uso"></div>
+    <details id="profNew">
+      <summary>＋ Adicionar veículo</summary>
+      <div class="form">
+        <label>Modelo<select id="pNewModel"></select></label>
+        <label>Nome<input id="pNewName" maxlength="40" placeholder="ex.: Mobi da Ana"></label>
+      </div>
+      <div class="row"><button id="btnPNew" class="primary">Adicionar e usar</button></div>
+    </details>
+
+    <h2 id="pHead">Veículo em uso</h2>
+    <div class="form">
+      <label>Nome<input id="pName" maxlength="40"></label>
+      <label>Modelo<select id="pModel"></select></label>
     </div>
-    <div class="row" data-export="log"></div>
-    <pre id="logOut"></pre>
-    <h3>Comando manual</h3>
-    <div class="row">
-      <input id="manCmd" style="flex:1 1 160px" placeholder="ex.: ATDP ou 010C" aria-label="Comando manual" autocapitalize="characters">
-      <button id="btnMan" data-conn disabled>Enviar</button>
+    <p id="pMotor" class="small muted"></p>
+
+    <h3>Consumo e combustível</h3>
+    <p class="small muted">Nenhum destes carros mede o combustível que passa pelo bico: os litros são <b>calculados</b> a partir do ar admitido (sensor MAF ou, sem ele, pela pressão do coletor, giro e temperatura do ar). A eficiência volumétrica é um chute inicial; o que deixa o número confiável é a <b>calibração pelo posto</b>, logo abaixo.</p>
+    <div class="form">
+      <label>Cilindrada (L)<input id="vDisp" type="number" step="0.01" min="0.5" max="8" inputmode="decimal"></label>
+      <label>Eficiência volumétrica (%)<input id="vVe" type="number" step="1" min="40" max="120" inputmode="numeric"></label>
+      <label>Combustível<select id="vFuel"><option value="gas">Gasolina comum (E27)</option><option value="eth">Etanol hidratado</option><option value="mix">Mistura no tanque (flex)</option><option value="diesel">Diesel</option></select></label>
+      <label id="vEthRow">Etanol no tanque (%)<input id="vEth" type="number" step="5" min="0" max="100" inputmode="numeric"></label>
+      <label>Preço por litro (R$)<input id="vPrice" type="number" step="0.01" min="0" max="100" inputmode="decimal"></label>
+      <label>Fator de correção (%)<input id="vCorr" type="number" step="0.5" min="50" max="200" inputmode="decimal"></label>
+      <label>Distância pela<select id="vDist"><option value="obd">Velocidade do carro (OBD)</option><option value="gps">GPS do celular</option></select></label>
     </div>
+    <div class="row"><button id="btnGps2">📍 Ligar GPS</button><span id="gpsMsg" class="small muted hint" aria-live="polite"></span></div>
+    <p class="small muted">O velocímetro e a velocidade do OBD costumam marcar um pouco a mais que o real. Com o GPS, a distância (e as médias por km) vem do caminho medido pelo celular. Os dois hodômetros correm juntos para você comparar. O GPS gasta bateria e o Android pausa a localização com a tela apagada: use “Manter tela ligada” e deixe o celular no carregador.</p>
+    <p id="fuelSrc" class="small muted"></p>
+    <details>
+      <summary>Calibrar o consumo pelo posto</summary>
+      <p class="small">Encha o tanque, zere a viagem e rode normalmente (quanto mais, melhor). No posto, encha de novo e digite quantos litros entraram. O app ajusta o fator de correção.</p>
+      <div class="row"><input id="vReal" type="number" step="0.01" min="0" placeholder="litros no posto" aria-label="Litros que entraram no posto" inputmode="decimal"><button id="btnCalib">Calibrar</button></div>
+    </details>
+
+    <h3>Viagem atual</h3>
+    <div id="tripOut" class="stats four"></div>
+    <p id="tripSince" class="small muted"></p>
+    <div class="row"><button id="btnTripReset">Zerar viagem</button></div>
+    <details>
+      <summary>Consumo a cada km rodado</summary>
+      <p class="small">Cada linha é um quilômetro completo: litros gastos naquele km e o km/L dele. A média da viagem é sempre <b>distância ÷ litros</b>, nunca a média das leituras instantâneas.</p>
+      <div class="tw segs"><table id="segOut"></table></div>
+    </details>
+
+    <h3>Alertas deste veículo</h3>
+    <p class="small muted">Quando um sensor passa do limite, o mostrador fica vermelho, o celular apita e vibra e, se permitido, aparece uma notificação. Som, vibração e notificação se ajustam em <button class="link" data-go="ajustes">Ajustes</button>.</p>
+    <div id="alertList"></div>
+    <div class="row">
+      <select id="aNewSensor" aria-label="Sensor do novo alerta"></select>
+      <input id="aNewMin" type="number" step="any" placeholder="mín." aria-label="Mínimo" class="num">
+      <input id="aNewMax" type="number" step="any" placeholder="máx." aria-label="Máximo" class="num">
+      <button id="btnANew">Adicionar alerta</button>
+    </div>
+
+    <h3>Linha de base</h3>
+    <div id="baseBox" class="carbox"></div>
+
+    <details id="guide" hidden>
+      <summary>Guia do modelo</summary>
+      <div class="guidebox" data-guide="c3">
+      <h3>Citroën C3 2010 · 1.4 8V TU3JP</h3>
+      <dl class="kv">
+        <dt>Motor</dt><dd>TU3JP · 1.4 (1.360 cm³) · 8 válvulas · 4 cilindros · flex no Brasil</dd>
+        <dt>Tomada OBD</dt><dd>Embaixo do painel, do lado do motorista, perto da caixa de fusíveis. Às vezes fica atrás de uma tampinha.</dd>
+        <dt>Protocolo</dt><dd>Detectado sozinho pelo app. Se falhar, ele tenta um por um (CAN, KWP e ISO).</dd>
+      </dl>
+
+      <h3>O que o ELM327 lê neste carro</h3>
+      <p class="small">Só a central do <b>motor</b>, pelo OBD-II genérico: sensores, códigos de falha do motor, monitores, congelamento de falha e dados da ECU.</p>
+      <p class="small muted">ABS, airbag, BSI (a central da carroceria), painel, direção e reset de revisão usam o protocolo próprio da PSA. Para esses módulos é preciso o Diagbox/Lexia (a ferramenta oficial) ou um app com perfil PSA.</p>
+
+      <h3>Valores de referência (motor quente, marcha lenta)</h3>
+      <div class="tw"><table>
+        <tr><th>Sensor</th><th>Normal</th><th>Se estiver fora</th></tr>
+        <tr><td>RPM</td><td>750 – 950</td><td>Oscilando muito: corpo de borboleta sujo ou entrada falsa de ar</td></tr>
+        <tr><td>Temperatura do motor</td><td>85 – 105 °C</td><td>Não passa de 75 °C: válvula termostática aberta · acima de 110 °C: arrefecimento</td></tr>
+        <tr><td>Ajuste curto B1</td><td>−10 a +10 %</td><td>Oscilar em torno de zero é normal</td></tr>
+        <tr><td>Ajuste longo B1</td><td>−10 a +10 %</td><td>Acima de +15 %: mistura pobre (entrada de ar, bomba fraca, bico sujo) · abaixo de −15 %: mistura rica</td></tr>
+        <tr><td>Pressão do coletor (MAP)</td><td>25 – 45 kPa</td><td>Alta na lenta: entrada de ar ou compressão baixa</td></tr>
+        <tr><td>Avanço de ignição</td><td>5 – 20 °</td><td>Negativo ou instável: detonação ou sensor</td></tr>
+        <tr><td>Sonda O2 B1S1 (antes do catalisador)</td><td>Oscila de 0,1 a 0,9 V várias vezes por segundo</td><td>Parada em 0,4–0,5 V: sonda morta ou malha aberta</td></tr>
+        <tr><td>Sonda O2 B1S2 (depois do catalisador)</td><td>Estável entre 0,5 e 0,8 V</td><td>Oscilando igual à B1S1: catalisador gasto</td></tr>
+        <tr><td>Sistema de combustível</td><td>Malha fechada</td><td>Malha aberta com o motor quente: sonda ou falha</td></tr>
+        <tr><td>Carga do motor</td><td>15 – 35 %</td><td>Alta sem nada ligado: esforço extra ou sensor</td></tr>
+        <tr><td>Tensão (ATRV / ECU)</td><td>13,5 – 14,8 V</td><td>Abaixo de 13 V ligado: alternador</td></tr>
+      </table></div>
+      <p class="small muted">Referências gerais para motor a gasolina ou flex em bom estado. Não são dados de fábrica da PSA. No flex, o ajuste longo muda por alguns quilômetros depois de trocar de combustível, enquanto a ECU reaprende. O percentual de etanol (PID 52) geralmente não é informado: vai aparecer “n/s”.</p>
+
+      <h3>Roteiro do teste</h3>
+      <ol class="steps small">
+        <li><b>Chave em ON, motor desligado:</b> conecte e, em <b>Ferramentas → Tensão</b>, confira a bateria (≥ 12,4 V).</li>
+        <li><b>Ferramentas → Ficha</b> → <b>Gerar ficha completa</b>. A primeira detecção de protocolo pode levar até 15 s.</li>
+        <li>Em <b>Falhas</b>: leia os códigos, os monitores e o congelamento <i>antes</i> de apagar qualquer coisa.</li>
+        <li><b>Ligue o motor</b> e espere a temperatura passar de 85 °C (<b>Ferramentas → Sensores</b>, modo Principais).</li>
+        <li>Troque para <b>Todos os suportados</b>, toque em <b>Gravar CSV</b> e deixe 2 min em marcha lenta.</li>
+        <li>Segure em ~2.500 rpm por 30 s e solte. Pare a gravação e toque em <b>Baixar CSV</b>.</li>
+        <li><b>Ferramentas → Sondas</b> → <b>Iniciar leitura das sondas</b>. Veja a pré oscilar e a pós ficar estável; faça o <b>teste de resposta</b>.</li>
+        <li>Toque em <b>⤴</b> no topo → <b>Relatório completo</b> → <b>Perguntar à IA</b> (ou <b>Baixar JSON</b> para guardar).</li>
+      </ol>
+      <p class="small muted">Não use o app com o carro em movimento. Se precisar testar rodando, deixe outra pessoa dirigir.</p>
+      </div>
+      <div class="guidebox" data-guide="mobi">
+      <h3>Fiat Mobi · manual · direção hidráulica</h3>
+      <p class="small muted">Não sabe qual motor é o seu? Conte os cilindros: o Fire tem 4, o Firefly tem 3 (o ronco é diferente e a tampa do motor indica). Confira no documento do carro ou no manual.</p>
+
+      <h3>O que o ELM327 lê neste carro</h3>
+      <p class="small">Só a central do <b>motor</b>, pelo OBD-II genérico. O protocolo é detectado sozinho e aparece em <b>Ferramentas → Ficha</b>.</p>
+      <p class="small muted">ABS, airbag, central da carroceria e painel usam protocolo próprio da Fiat e precisam da ferramenta da concessionária ou de um app com perfil Fiat.</p>
+      <ul class="small">
+        <li><b>Câmbio manual:</b> não há central de câmbio. O OBD não informa a marcha.</li>
+        <li><b>Direção hidráulica:</b> a bomba é tocada pela correia do motor, então virar o volante parado aumenta a carga do motor. Não há sensor da direção no OBD genérico; o efeito aparece no giro e na carga.</li>
+        <li><b>Flex:</b> o percentual de etanol (PID 52) geralmente não é informado: aparece “n/s”. Em “Consumo e combustível”, acima, escolha o combustível do tanque.</li>
+      </ul>
+
+      <h3>Teste da direção hidráulica (parado, motor quente)</h3>
+      <ol class="steps small">
+        <li>Painel lendo <b>RPM</b> e <b>Carga do motor</b>, com o carro parado e freio de mão puxado.</li>
+        <li>Vire o volante devagar de um lado ao outro. <b>Não segure no fim do curso</b> por mais de alguns segundos: isso força a bomba.</li>
+        <li>Normal: o giro oscila um pouco e volta, a carga sobe enquanto você vira. Anote os valores que o <i>seu</i> carro mostrou.</li>
+        <li>Se o motor quase apagar, chiar ou a direção pesar: vale olhar correia, nível do fluido e limpeza do corpo de borboleta com o mecânico.</li>
+      </ol>
+      <p class="small muted">O app não tem um valor “de fábrica” para isso: compare com a sua própria medição de hoje daqui a alguns meses.</p>
+      </div>
+      <div class="guidebox" data-guide="duster">
+      <h3>Renault Duster 2018 · manual · 4x2</h3>
+      <p class="small muted">Em 2018 o Duster manual 4x2 saiu com 1.6 16V SCe ou 2.0 16V. Confira no documento do carro ou na tampa do motor.</p>
+
+      <h3>O que o ELM327 lê neste carro</h3>
+      <p class="small">Só a central do <b>motor</b>, pelo OBD-II genérico. O protocolo é detectado sozinho e aparece em <b>Ferramentas → Ficha</b>.</p>
+      <p class="small muted">ABS, airbag, central da carroceria (UCH) e painel usam o protocolo próprio da Renault. Para esses módulos é preciso a ferramenta oficial (CLIP) ou um app com perfil Renault.</p>
+      <ul class="small">
+        <li><b>Câmbio manual:</b> não há central de câmbio. O OBD não informa a marcha.</li>
+        <li><b>4x2:</b> só tração dianteira; não há módulo de tração 4x4 para ler.</li>
+        <li><b>Flex:</b> o percentual de etanol (PID 52) geralmente não é informado. Em “Consumo e combustível”, acima, escolha o combustível do tanque.</li>
+      </ul>
+      </div>
+    </details>
+
+    <div class="row"><button id="btnPDel" class="danger">Apagar este veículo</button></div>
+  </section>
+
+  <!-- AJUSTES -->
+  <section id="ajustes" class="tab" role="region" aria-label="Ajustes">
+    <button class="tools1" data-go="perfis"><b>Veículos</b><span>Trocar de carro, consumo, alertas e linha de base de cada um</span></button>
+
+    <h2>Alertas</h2>
+    <p class="small muted">Os limites de cada sensor ficam em <button class="link" data-go="perfis">Veículos</button>, porque mudam de carro para carro. Aqui fica como o celular avisa. Os alertas só valem enquanto o app está lendo.</p>
+    <div class="checks">
+      <label><input type="checkbox" id="ao_sound"> Som</label>
+      <label><input type="checkbox" id="ao_vibrate"> Vibração</label>
+      <label><input type="checkbox" id="ao_notify"> Notificação do sistema</label>
+      <label>Disparar após <input type="number" id="ao_delay" min="0" max="30" step="1" class="num"> s fora do limite</label>
+    </div>
+    <p class="small">Notificações: <b id="notifPerm"></b> <button id="btnNotifPerm" class="mini">Permitir</button> <button id="btnATest" class="mini">Testar alerta</button></p>
+    <details>
+      <summary>Alertas disparados</summary>
+      <div id="alertLogOut"></div>
+      <div class="row"><button id="btnALogClr" class="mini">Limpar lista</button></div>
+    </details>
+
+    <h2 id="fora">Ver fora do app</h2>
+    <div class="row outrow">
+      <button id="btnPip">◳ Janela flutuante</button>
+      <button id="btnLock">🔒 Tela bloqueada</button>
+      <button id="btnNotif">🔔 Notificação fixa</button>
+    </div>
+    <p class="small muted">A janela flutuante fica por cima de outros apps (mapas, música). “Tela bloqueada” usa o controle de mídia do Android para mostrar os valores sem desbloquear. “Manter tela ligada” fica no Painel.</p>
+    <p class="small">Até 4 sensores para a janela flutuante, a tela bloqueada e a notificação fixa:</p>
+    <div class="form">
+      <label>1º<select id="out0"></select></label><label>2º<select id="out1"></select></label>
+      <label>3º<select id="out2"></select></label><label>4º<select id="out3"></select></label>
+    </div>
+    <details>
+      <summary>O que funciona em cada aparelho</summary>
+      <div class="tw"><table>
+        <tr><th></th><th>Android (Chrome)</th><th>Computador</th><th>iPhone</th></tr>
+        <tr><td>Manter tela ligada</td><td>Sim</td><td>Sim</td><td>Bluefy: depende</td></tr>
+        <tr><td>Janela flutuante</td><td>Sim, por cima de outros apps</td><td>Sim</td><td>Não</td></tr>
+        <tr><td>Tela bloqueada (mídia)</td><td>Sim, no player da tela bloqueada</td><td>Aparece no controle de mídia</td><td>Não</td></tr>
+        <tr><td>Notificação fixa e alertas</td><td>Sim (com o app instalado ou a aba aberta)</td><td>Sim</td><td>Não</td></tr>
+      </table></div>
+      <p class="small muted">Com a tela apagada o Android pode desacelerar a página. Para leitura contínua e confiável no carro, prefira “Manter tela ligada” com o celular no suporte.</p>
+    </details>
+
+    <h2>Backup e outro aparelho</h2>
+    <p class="small">Não há conta nem servidor: painéis, alertas, viagem e ajustes ficam só neste navegador. Para levar a outro celular, exporte o backup e importe lá.</p>
+    <div class="row">
+      <button id="btnBkDl">Baixar backup (.json)</button>
+      <button id="btnBkCopy">Copiar backup</button>
+      <label class="filebtn">Importar arquivo<input id="bkFile" type="file" accept="application/json,.json"></label>
+    </div>
+    <p id="bkMsg" class="small muted" aria-live="polite"></p>
+    <details>
+      <summary>Colar backup</summary>
+      <textarea id="bkText" rows="4" placeholder="Cole aqui o texto do backup" aria-label="Texto do backup"></textarea>
+      <div class="row"><button id="btnBkPaste">Importar texto colado</button></div>
+    </details>
+    <div class="row">
+      <button id="btnInstall" class="primary" hidden>Instalar como app</button>
+      <button id="btnBkReset" class="danger">Apagar dados deste aparelho</button>
+    </div>
+    <p class="small muted">Segurança: o app não envia nada para servidor nenhum. Backups importados são conferidos campo a campo antes de entrar, e a página bloqueia scripts de fora (Content Security Policy).</p>
+
+    <h2>Sobre</h2>
+    <p class="small">Painel do carro, sondas lambda, sensores, códigos de falha e consumo, tudo no navegador. O app só <b>lê</b> o que a central do motor informa pelo OBD-II; a única escrita é apagar códigos de falha, quando você confirma.</p>
+    <p class="small muted">Código aberto (licença MIT). Sugestões e contribuições: <a href="https://github.com/paulpessoa/elm327-scanner" target="_blank" rel="noopener">github.com/paulpessoa/elm327-scanner</a></p>
   </section>
 </main>
+
+<nav class="bnav" aria-label="Navegação principal">
+  <button data-go="painel"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 16a8.5 8.5 0 1 1 17 0"/><path d="M12 16l4.5-5"/><circle cx="12" cy="16" r="1.2"/></svg><span>Painel</span></button>
+  <button data-go="viagens"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="18.5" r="2"/><circle cx="18" cy="5.5" r="2"/><path d="M8 18.5h7.5a3.25 3.25 0 0 0 0-6.5h-7a3.25 3.25 0 0 1 0-6.5H16"/></svg><span>Viagens</span></button>
+  <button data-go="falhas" id="navFalhas"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l9 16H3z"/><path d="M12 10v4.5M12 17.2v.3"/></svg><span>Falhas</span></button>
+  <button data-go="ferramentas"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6.5a4 4 0 0 0-5.3 5L3.5 17.2V20.5h3.3l5.7-5.7a4 4 0 0 0 5-5.3l-2.5 2.5-2.3-.5-.5-2.3z"/></svg><span>Ferramentas</span></button>
+  <button data-go="ajustes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg><span>Ajustes</span></button>
+</nav>
+
+<dialog id="connDlg" class="sheet" aria-labelledby="connTitle">
+  <div class="ibody">
+    <h2 id="connTitle">Conectar</h2>
+    <div class="conn">
+      <button id="btnBle" data-m="ble"><b>Bluetooth BLE</b><span>Não pede PIN. A maioria dos adaptadores novos.</span></button>
+      <button id="btnSerial" data-m="serial"><b>Bluetooth clássico ou USB</b><span>Pareie antes no celular, com PIN 1234 ou 0000.</span></button>
+      <button id="btnDemo" data-m="demo"><b>Modo demonstração</b><span>Motor simulado, sem carro e sem adaptador.</span></button>
+    </div>
+    <p class="small muted">Não sabe qual é o seu? Se ele aparece nas configurações de Bluetooth do celular e pede PIN, é o clássico.</p>
+  </div>
+  <div class="row dlgbtns"><button id="connClose">Cancelar</button></div>
+</dialog>
+
+<dialog id="shareDlg" class="sheet" aria-labelledby="shareTitle">
+  <div class="ibody">
+    <h2 id="shareTitle">Compartilhar</h2>
+    <div id="shareScope" class="chips" role="group" aria-label="O que compartilhar"></div>
+    <p class="small muted">“Perguntar à IA” monta uma pergunta com os dados para o ChatGPT, o Claude ou o Gemini. O JSON é o mesmo conteúdo, para guardar ou mandar ao mecânico.</p>
+    <div class="row" id="shareBtns">
+      <button data-a="ai" class="ai">Perguntar à IA</button>
+      <button data-a="copy">Copiar JSON</button>
+      <button data-a="dl">Baixar JSON</button>
+    </div>
+    <p id="shareOut" class="xout" aria-live="polite"></p>
+  </div>
+  <div class="row dlgbtns"><button id="shareClose">Fechar</button></div>
+</dialog>
 
 <dialog id="wdlg" aria-labelledby="wdlgTitle">
   <form method="dialog" class="wform">
@@ -663,6 +713,7 @@
 <script src="js/maint.js"></script>
 <script src="js/settings.js"></script>
 <script src="js/demo.js"></script>
+<script src="js/nav.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>
