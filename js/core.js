@@ -265,15 +265,16 @@ async function connect(fn){
   }
 }
 
-async function disconnect(){
+async function disconnect(lost){
   stopLoops();
   const l = link; link = null;
   try { await l?.close(); } catch {}
   pending = null; buf = ''; queue = Promise.resolve(); late = false;
   setConnected(false); setStatus('', 'Desconectado'); log('Desconectado');
-  dispatchEvent(new Event('disconnected'));
+  // lost: a conexão caiu sozinha (carro desligado, adaptador fora de alcance), não foi o botão
+  dispatchEvent(new CustomEvent('disconnected', { detail: { lost: lost === true } }));
 }
-function onLost(){ if (!link) return; log('⚠ Conexão perdida'); disconnect(); }
+function onLost(){ if (!link) return; log('⚠ Conexão perdida'); disconnect(true); }
 function stopLoops(){
   voltOn = false; $('btnLoop').textContent = 'Monitorar (1 s)';
   liveOn = false; $('btnLive').textContent = 'Iniciar leitura'; $('liveMode').disabled = false;
@@ -681,21 +682,35 @@ async function fetchDTC(mode){
   return [...codes];
 }
 async function readDTC(mode){ renderDTC(mode, await fetchDTC(mode)); }
+const dtcRow = c => '<div class="dtc"><b>' + c + '</b><span class="small">' + (dtcPlain(c) ? esc(dtcPlain(c)[0]) + '<br>' : '') + esc(dtcInfo(c)) + '</span>' +
+  '<a href="https://www.google.com/search?q=' + c + '+OBD2" target="_blank" rel="noopener">pesquisar</a></div>';
+const DTC_TITLE = { '03': 'Falhas confirmadas', '07': 'Falhas em observação', '0A': 'Falhas permanentes' };
+const DTC_HINT = { '03': 'A central confirmou o defeito. Costuma acender a luz de injeção.',
+  '07': 'A central viu o problema pelo menos uma vez e ainda está confirmando.',
+  '0A': 'Só saem sozinhas, depois que a central confirma rodando que o defeito foi resolvido.' };
 function renderDTC(mode, list){
-  const codes = new Set(list);
-  const title = mode === '03' ? 'Códigos armazenados' : 'Códigos pendentes';
-  $('dtcOut').innerHTML = '<h3>' + title + '</h3>' + (codes.size
-    ? [...codes].map(c => '<div class="dtc"><b>' + c + '</b><span class="small">' + (dtcPlain(c) ? esc(dtcPlain(c)[0]) + '<br>' : '') + esc(dtcInfo(c)) + '</span>' +
-        '<a href="https://www.google.com/search?q=' + c + '+OBD2" target="_blank" rel="noopener">pesquisar</a></div>').join('')
-    : '<div class="empty">Nenhum código ' + (mode === '03' ? 'armazenado' : 'pendente') + '. 👍</div>');
+  const codes = [...new Set(list)];
+  $('dtcOut').innerHTML = '<h3>' + DTC_TITLE[mode] + '</h3>' + (codes.length ? codes.map(dtcRow).join('')
+    : '<div class="empty">Nenhuma falha ' + (mode === '03' ? 'confirmada' : 'em observação') + '. 👍</div>');
 }
-$('btnDtc').onclick = () => readDTC('03').catch(e => log('⚠ ' + e.message));
-$('btnDtcPend').onclick = () => readDTC('07').catch(e => log('⚠ ' + e.message));
+// Uma leitura só: confirmadas (03), em observação (07) e permanentes (0A, nem todo carro tem)
+async function readAllDTC(){
+  const got = {};
+  got['03'] = await fetchDTC('03');
+  got['07'] = await fetchDTC('07').catch(() => []);
+  got['0A'] = await fetchDTC('0A').catch(() => null);
+  const when = 'Verificado às ' + new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) + '.';
+  const parts = Object.entries(got).filter(([, l]) => l?.length);
+  $('dtcOut').innerHTML = !parts.length
+    ? '<div class="empty"><b>Nenhuma falha encontrada. 👍</b><br><span class="small">' + when + ' Nada confirmado, nada em observação' + (got['0A'] ? ', nada permanente' : '') + '.</span></div>'
+    : '<p class="small muted">' + when + '</p>' + parts.map(([m, l]) => '<h3>' + DTC_TITLE[m] + ' (' + l.length + ')</h3><p class="small muted">' + DTC_HINT[m] + '</p>' + l.map(dtcRow).join('')).join('');
+}
+$('btnDtc').onclick = () => readAllDTC().catch(e => { log('⚠ ' + e.message); $('dtcOut').innerHTML = '<div class="empty">' + esc(e.message) + '</div>'; });
 $('btnDtcClear').onclick = async () => {
-  if (!confirm('Apagar os códigos de falha?\n\nIsso apaga a luz de injeção e zera os monitores de prontidão. O defeito continua lá: se não for resolvido, a luz volta a acender.\n\nFaça com a chave em ON e o motor DESLIGADO.')) return;
+  if (!confirm('Apagar as falhas?\n\nIsso apaga a luz de injeção e zera os monitores de prontidão. O defeito continua lá: se não for resolvido, a luz volta a acender.\n\nFaça com a chave em ON e o motor DESLIGADO.')) return;
   const r = first(await cmd('04', 10000).catch(e => [e.message]));
-  alert(ERR.test(r) ? 'O carro recusou: ' + r : 'Códigos apagados.');
-  $('dtcOut').innerHTML = '<div class="empty">Códigos apagados. Leia de novo para conferir.</div>';
+  alert(ERR.test(r) ? 'O carro recusou: ' + r : 'Falhas apagadas.');
+  $('dtcOut').innerHTML = '<div class="empty">Falhas apagadas. Toque em “Verificar falhas” para conferir.</div>';
 };
 
 async function ensurePids(){
@@ -732,7 +747,7 @@ async function readFreeze(){
     if (v != null) rows.push([PIDS[p].name, v + (PIDS[p].unit ? ' ' + PIDS[p].unit : '')]);
   }
   diag.congelamento.sensores = Object.fromEntries(rows);
-  $('dtcOut').innerHTML = '<h3>Congelamento da falha ' + dtc + '</h3>' +
+  $('dtcOut').innerHTML = '<h3>Retrato da falha ' + dtc + '</h3>' +
     '<p class="small muted">Retrato dos sensores no instante em que a falha foi registrada.</p>' +
     '<dl class="kv">' + rows.map(([k, v]) => '<dt>' + esc(k) + '</dt><dd>' + esc(v) + '</dd>').join('') + '</dl>';
 }

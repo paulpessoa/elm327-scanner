@@ -153,15 +153,16 @@
   <!-- FALHAS -->
   <section id="falhas" class="tab" role="region" aria-label="Falhas">
     <div class="row">
-      <button id="btnDtc" class="primary" data-conn disabled>Ler códigos (03)</button>
-      <button id="btnDtcPend" data-conn disabled>Pendentes (07)</button>
-      <button id="btnDtcClear" class="danger" data-conn disabled>Apagar códigos (04)</button>
+      <button id="btnDtc" class="primary" data-conn disabled>Verificar falhas</button>
     </div>
     <div class="row">
       <button id="btnMon" data-conn disabled>Monitores de prontidão</button>
-      <button id="btnFreeze" data-conn disabled>Congelamento da falha (02)</button>
+      <button id="btnFreeze" data-conn disabled>Retrato da falha</button>
     </div>
-    <div id="dtcOut"><div class="empty">Nenhuma leitura feita ainda.</div></div>
+    <div id="dtcOut"><div class="empty">Conecte o adaptador e toque em “Verificar falhas”. O app lê as falhas confirmadas, as em observação e as permanentes de uma vez.</div></div>
+    <div class="row">
+      <button id="btnDtcClear" class="danger" data-conn disabled>Apagar falhas</button>
+    </div>
     <details>
       <summary>Como ler um código (ex.: P0301)</summary>
       <div class="tw"><table>

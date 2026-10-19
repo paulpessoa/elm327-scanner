@@ -107,6 +107,7 @@ async function recStop({ t0, kept }){
 }
 addEventListener('runstart', e => recStart(e.detail));
 addEventListener('runend', e => recStop(e.detail));
+addEventListener('runresume', e => { if (tripRec.id === e.detail.t0) need('gravacao', REC_EXTRA); });
 
 // Ao abrir: limpa sobras (viagens curtas, app fechado no meio) e descobre quais viagens têm gravação
 (async () => {

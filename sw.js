@@ -1,6 +1,6 @@
 // Service worker: deixa o app abrir sem internet (na garagem) e entrega as notificações de alerta.
 // Rede primeiro para pegar sempre a versão nova; o cache só entra quando não há conexão.
-const CACHE = 'elm327-v9';
+const CACHE = 'elm327-v10';
 const FILES = ['./', 'index.html', 'app.css', 'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png',
   'js/core.js', 'js/config.js', 'js/engine.js', 'js/gauges.js', 'js/dash.js', 'js/alerts.js', 'js/lambda.js',
   'js/outside.js', 'js/explain.js', 'js/gps.js', 'js/cars.js', 'js/trips.js', 'js/health.js', 'js/maint.js', 'js/settings.js', 'js/demo.js', 'js/motion.js', 'js/rec.js', 'js/inspect.js', 'js/nav.js', 'js/main.js'];

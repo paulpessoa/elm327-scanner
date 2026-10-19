@@ -6,15 +6,19 @@
 // vira um evento 'drive': a gravação (rec.js) escuta os três sem que este arquivo saiba dela.
 // Critérios do estilo (ficam visíveis na tela para ninguém achar que é mágica):
 const ST = { acc: 2.5, brk: 3.5, launch: 20, rpm: 3000, fast: 110, gap: 4, lat: 0.35, latMs: 1000 };   // m/s², m/s², km/h, rpm, km/h, s entre eventos, g, ms na curva
-const RUN_SPEED = ['p0D', 'p0C', 'p05', 'c:lph'];
+// A6 (hodômetro, 0,1 km) e 31 (km desde que as falhas foram apagadas, 1 km) conferem a distância somada pelo app
+const RUN_SPEED = ['p0D', 'p0C', 'p05', 'c:lph', 'pA6', 'p31'];
+// Se a conexão cai sozinha e volta em até RUN_GRACE ms, é a mesma viagem (Bluetooth instável, parada rápida)
+const RUN_GRACE = 3 * 60 * 1000;
 let run = null;   // viagem em andamento (com os valores iniciais dos hodômetros)
+let runGrace = null;
 
 function runStart(force){
   if (run || !link || (!force && (!cfg.runOpt.auto || link.kind === 'Demo'))) return;
   const t = cfg.trip;
   run = { t0: Date.now(), kmObd0: t.kmObd, kmGps0: t.kmGps, L0: t.L, car: cfg.vehicle.car, fuel: cfg.vehicle.fuel, eth: cfg.vehicle.ethanol,
     price: cfg.vehicle.price, corr: cfg.vehicle.corr, idle_s: 0, move_s: 0, hirpm_s: 0, fast_s: 0, vmax: 0, acc: 0, arr: 0, brk: 0, crv: 0, glat: 0,
-    idleL: 0, temp0: null, sim: link.kind === 'Demo', win: [], last: null, evT: 0, latT: 0, saveT: 0 };
+    idleL: 0, temp0: null, odo: {}, sim: link.kind === 'Demo', win: [], last: null, evT: 0, latT: 0, saveT: 0 };
   need('viagem', RUN_SPEED);
   dispatchEvent(new CustomEvent('runstart', { detail: { t0: run.t0, car: run.car, sim: run.sim } }));
   runUi();
@@ -25,9 +29,22 @@ function runSummary(r = run, now = Date.now()){
   const t = cfg.trip;
   const kmO = t.kmObd - r.kmObd0, kmG = t.kmGps - r.kmGps0;
   const gps = cfg.vehicle.dist === 'gps' && kmG > 0.05;
-  return cleanRun({ ...r, t1: now, km: Math.max(0, gps ? kmG : kmO), src: gps ? 'gps' : 'obd', L: Math.max(0, t.L - r.L0) });
+  let km = Math.max(0, gps ? kmG : kmO);
+  // O hodômetro da central não perde trecho: se ele andou mais do que o app somou, vale ele
+  const odo = odoKm(r);
+  if (odo && odo.km > km + odo.res) km = odo.km;
+  return cleanRun({ ...r, t1: now, km, src: gps ? 'gps' : 'obd', L: Math.max(0, t.L - r.L0) });
+}
+// Distância pelos contadores da central (primeira e última leitura da viagem); res = resolução em km
+function odoKm(r){
+  for (const [k, res] of [['pA6', 0.2], ['p31', 1]]){
+    const o = r.odo?.[k];
+    if (o && o.b > o.a && o.b - o.a < 2000) return { km: o.b - o.a, res };
+  }
+  return null;
 }
 function runEnd(){
+  clearTimeout(runGrace); runGrace = null;
   if (!run) return;
   const s = runSummary();
   run = null; release('viagem');
@@ -51,6 +68,7 @@ engineOn('value', (k, v, t) => {
   if (k === 'c:glat'){ curveTick(v, t); return; }
   if (typeof v !== 'number') return;
   if (k === 'p05' && run.temp0 == null) run.temp0 = v;
+  if (k === 'pA6' || k === 'p31'){ const o = run.odo[k] ||= { a: v, b: v }; o.b = v; return; }
   // A velocidade marca o compasso: tempo parado, andando, giro alto, acima de 110, acelerações e frenagens
   const spdKey = fresh('p0D', 5000) != null ? 'p0D' : 'c:gspd';
   if (k !== spdKey) return;
@@ -75,8 +93,25 @@ engineOn('value', (k, v, t) => {
   }
   if (t - run.saveT > 15000){ run.saveT = t; cfg.runCur = runSummary(run, t); saveCfg(); }
 });
-addEventListener('connected', () => runStart());
-addEventListener('disconnected', runEnd);
+addEventListener('connected', () => {
+  // Voltou dentro do prazo: continua a mesma viagem (o motor de leitura esqueceu os pedidos ao desconectar)
+  if (runGrace && run?.car === cfg.vehicle.car){
+    clearTimeout(runGrace); runGrace = null;
+    need('viagem', RUN_SPEED); run.last = null; run.win = [];
+    dispatchEvent(new CustomEvent('runresume', { detail: { t0: run.t0 } }));
+    runUi(); return;
+  }
+  if (runGrace) runEnd();   // outro carro: a viagem anterior termina aqui
+  runStart();
+});
+addEventListener('disconnected', e => {
+  if (run && e.detail?.lost && !run.sim){
+    cfg.runCur = runSummary(); saveCfg();
+    clearTimeout(runGrace); runGrace = setTimeout(runEnd, RUN_GRACE);
+    runUi(); return;
+  }
+  runEnd();
+});
 // App fechado no meio de uma viagem: o que foi salvo vira uma viagem do histórico
 if (cfg.runCur){ const r = cfg.runCur; cfg.runCur = null; if (r.km >= 0.3 || r.t1 - r.t0 > 120000) cfg.runs.push(r); saveCfg(); }
 
@@ -153,7 +188,8 @@ function fuelCompare(){
 /* ---- Tela ---- */
 function runUi(){
   const el = $('runNow'); if (!el) return;
-  el.innerHTML = run ? '● Gravando esta viagem desde ' + new Date(run.t0).toLocaleTimeString() + '.'
+  el.innerHTML = run && runGrace ? '⏸ A conexão caiu. Se o adaptador voltar em até ' + RUN_GRACE / 60000 + ' min, esta viagem continua; senão, ela vai para a lista.'
+    : run ? '● Gravando esta viagem desde ' + new Date(run.t0).toLocaleTimeString() + '.'
     : link?.kind === 'Demo' ? 'Modo demonstração: as viagens não começam sozinhas. Toque em “Começar viagem agora” para gravar uma de teste.'
     : !link ? (cfg.runOpt.auto ? 'Conecte o adaptador: a viagem começa a ser gravada sozinha.' : 'Gravação automática desligada.')
     : 'Nenhuma viagem em andamento.';

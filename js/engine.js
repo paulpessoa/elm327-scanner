@@ -282,7 +282,7 @@ function fuelProps(){
   return { afr: GAS.afr + (ETH.afr - GAS.afr) * x, dens: GAS.dens + (ETH.dens - GAS.dens) * x };
 }
 // De onde vem o combustível estimado (aparece em Ajustes, para ninguém achar que é medição direta)
-let calcT = 0, fuelT = 0, tripSaveT = 0, fuelSrc = '';
+let fuelT = 0, tripSaveT = 0, fuelSrc = '';
 function calcUpdate(){
   const now = Date.now(), v = cfg.vehicle;
   let maf = fresh('p10'), src = maf != null ? 'maf' : '';
@@ -310,19 +310,25 @@ function calcUpdate(){
   const spd = spdGps ?? fresh('p0D');
   if (spd != null && lph != null) store.set('c:kml', spd < 3 ? null : +Math.min(99.9, spd / Math.max(lph, 0.05)).toFixed(1), now);
 
-  // Integração no tempo: litros sempre; distância pelo OBD só quando a velocidade é atual
+  // Integração no tempo dos litros (a distância pelo OBD é somada a cada leitura da velocidade, abaixo)
   const t = cfg.trip;
   const dtF = (now - fuelT) / 1000;
   if (fuelT && lph != null && dtF > 0 && dtF < 5) t.L += lph * dtF / 3600;
   fuelT = lph != null ? now : 0;
-  const obd = fresh('p0D');
-  if (obd != null){
-    const dt = (now - calcT) / 1000;
-    if (calcT && dt > 0 && dt < 5) t.kmObd += obd * dt / 3600;
-    calcT = now;
-  } else calcT = 0;
   tripUpdate(now);
 }
+// Distância pelo OBD: área sob a curva da velocidade entre duas leituras seguidas do 0D (média das duas × tempo).
+// Medir entre leituras, e não por volta do laço, não perde distância quando o laço fica lento (muitos sensores,
+// protocolo antigo, tela apagada). Intervalo acima de SPD_GAP s fica de fora: não dá para saber o que houve no meio.
+const SPD_GAP = 30;
+let spdLast = null;
+engineOn('value', (k, v, t) => {
+  if (k !== 'p0D') return;
+  if (typeof v !== 'number'){ spdLast = null; return; }
+  const dt = spdLast ? (t - spdLast.t) / 1000 : 0;
+  if (dt > 0 && dt <= SPD_GAP) cfg.trip.kmObd += (v + spdLast.v) / 2 * dt / 3600;
+  spdLast = { v, t };
+});
 
 /* ---- Viagem: distância escolhida (OBD ou GPS), litros e médias por quilômetro ---- */
 const tripKm = () => cfg.vehicle.dist === 'gps' ? cfg.trip.kmGps : cfg.trip.kmObd;
@@ -349,10 +355,10 @@ function tripUpdate(now = Date.now()){
   if (now - tripSaveT > 15000){ tripSaveT = now; saveCfg(); }
 }
 function resetTrip(){
-  cfg.trip = newTrip(); calcT = 0; fuelT = 0; saveCfg();
+  cfg.trip = newTrip(); spdLast = null; fuelT = 0; saveCfg();
   ['c:km', 'c:kmo', 'c:kmg', 'c:fuel', 'c:cost'].forEach(k => store.set(k, 0));
   ['c:avg', 'c:l100', 'c:kml1'].forEach(k => store.set(k, null));
 }
 
-addEventListener('disconnected', () => { engine.consumers.clear(); engine.dead.clear(); engine.multi = null; calcT = 0; fuelT = 0; saveCfg(); });
+addEventListener('disconnected', () => { engine.consumers.clear(); engine.dead.clear(); engine.multi = null; spdLast = null; fuelT = 0; saveCfg(); });
 addEventListener('connected', () => { engine.dead.clear(); engine.multi = null; });
