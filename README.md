@@ -1,14 +1,34 @@
 # ELM327 Scanner
 
-Scanner OBD-II que roda no navegador (Chrome/Edge) e conversa com adaptadores ELM327 via **Web Bluetooth** (BLE) ou **Web Serial** (Bluetooth clássico/USB). Sem build, sem conta e sem servidor: tudo fica no aparelho.
+Scanner OBD-II que roda no navegador e conversa com adaptadores ELM327 via **Web Bluetooth** (BLE) ou **Web Serial** (Bluetooth clássico/USB). Sem build, sem conta e sem servidor: tudo fica no aparelho.
 
-**Abrir o app:** https://paulpessoa.github.io/elm327-scanner/ (sem adaptador, use o **Modo demonstração**)
+[![Abrir o app](https://img.shields.io/badge/Abrir%20o%20app-ao%20vivo-2ea44f?style=for-the-badge)](https://paulpessoa.github.io/elm327-scanner/) [![testes](https://github.com/paulpessoa/elm327-scanner/actions/workflows/test.yml/badge.svg)](https://github.com/paulpessoa/elm327-scanner/actions/workflows/test.yml) ![licença MIT](https://img.shields.io/badge/licen%C3%A7a-MIT-blue)
 
-| Modo simples | Painel completo | Sondas lambda | Vistoria de usado |
-|---|---|---|---|
-| ![Modo simples: "Tudo certo" e cartões de água, bateria, consumo agora e média da viagem](docs/simples.png) | ![Painel com ponteiro de RPM, velocidade, temperatura do motor e consumo instantâneo](docs/painel.png) | ![Osciloscópio das sondas pré e pós-catalisador com métricas](docs/sondas.png) | ![Laudo da vistoria: nenhum sinal de alerta, sem códigos de falha, códigos não apagados recentemente](docs/vistoria.png) |
+Sem adaptador? Use o **Modo demonstração**, um ELM327 simulado com motor virtual.
+
+![Painel com ponteiro de RPM, velocidade, temperatura do motor e consumo instantâneo](docs/painel.png)
+
+| Modo simples | Sondas lambda | Vistoria de usado |
+|---|---|---|
+| ![Modo simples: "Tudo certo" e cartões de água, bateria, consumo agora e média da viagem](docs/simples.png) | ![Osciloscópio das sondas pré e pós-catalisador com métricas](docs/sondas.png) | ![Laudo da vistoria: nenhum sinal de alerta, sem códigos de falha, códigos não apagados recentemente](docs/vistoria.png) |
 
 <sub>Imagens do modo demonstração (motor simulado).</sub>
+
+## Compatibilidade
+| | Web Bluetooth (BLE) | Web Serial (Bluetooth clássico/USB) | Janela flutuante | Tela bloqueada |
+|---|---|---|---|---|
+| Chrome Android (Samsung: use o Chrome, não o Samsung Internet) | ✅ | depende da versão | ✅ | ✅ (player de mídia) |
+| Chrome/Edge Windows, Mac, Linux | ✅ | ✅ (117+) | ✅ | controle de mídia |
+| iPhone | só pelo app Bluefy | ❌ | ❌ | ❌ |
+
+O Bluetooth exige HTTPS ou `localhost`, e não funciona se a página estiver dentro de um iframe.
+
+## Como funciona
+1. **Conexão** (`js/core.js`): Web Bluetooth (serviços GATT típicos de clones ELM327) ou Web Serial, atrás da mesma fila de comandos.
+2. **Comandos ELM327**: `AT` para configurar o adaptador e detectar o protocolo (`ATSP0`, `ATDPN`, com fallback protocolo por protocolo), depois os pedidos OBD-II (modos `01`, `02`, `03`, `04`, `07`, `09`, `0A`).
+3. **Decodificação** (SAE J1979): a tabela `PIDS` converte os bytes da resposta em valores (RPM, temperatura, ajustes de combustível, lambda…) e `decodeDTC` transforma os pares de bytes em códigos como `P0133`.
+4. **Laço de leitura** (`js/engine.js`): um único laço atende todas as telas. Cada tela pede os sensores que quer; as sondas lambda entram como "rápidas" e são lidas em toda volta. Em carros CAN, até 6 PIDs vão num só pedido, o que leva o simulador a ~50 leituras/s (adaptadores reais BLE costumam fazer 10–25 em CAN e 3–8 em K-line).
+5. **Interface**: mostradores, painel, alertas, viagens e vistoria, em JavaScript puro, sem framework nem build.
 
 ## Por que existe
 Para chegar na oficina sabendo o que o carro está dizendo. O app lê o que a central do motor já informa pela tomada OBD-II: sensores, códigos de falha, sondas lambda e consumo. Assim dá para conhecer o veículo, acompanhar a saúde dele, conversar com o mecânico com dados na mão e evitar trocar peça no chute.
@@ -42,9 +62,6 @@ Para chegar na oficina sabendo o que o carro está dizendo. O app lê o que a ce
 - **Modo demonstração**: um ELM327 simulado com motor virtual (CAN), para testar sem carro
 - Funciona **offline** e pode ser instalado como app (PWA)
 
-## Como a leitura funciona
-Um único laço (`js/engine.js`) atende todas as telas. Cada tela pede os sensores que quer; as sondas lambda entram como "rápidas" e são lidas em toda volta. Em carros CAN, até 6 PIDs vão num só pedido, o que leva o simulador a ~50 leituras/s (adaptadores reais BLE costumam fazer 10–25 em CAN e 3–8 em K-line).
-
 ## Arquivos
 | Arquivo | Conteúdo |
 |---|---|
@@ -76,14 +93,12 @@ Um único laço (`js/engine.js`) atende todas as telas. Cada tela pede os sensor
 python3 -m http.server 8000
 # abrir http://localhost:8000 no Chrome
 ```
-O Bluetooth exige HTTPS ou `localhost`, e não funciona se a página estiver dentro de um iframe.
 
-## Compatibilidade
-| | BLE | Bluetooth clássico (SPP) | Janela flutuante | Tela bloqueada |
-|---|---|---|---|---|
-| Chrome Android (Samsung: use o Chrome, não o Samsung Internet) | ✅ | depende da versão | ✅ | ✅ (player de mídia) |
-| Chrome Windows/Mac | ✅ | ✅ (117+) | ✅ | controle de mídia |
-| iPhone | só pelo app Bluefy | ❌ | ❌ | ❌ |
+## Testes
+A decodificação (PIDs e códigos de falha) tem testes sem dependências, com o `node:test` do Node:
+```bash
+node --test
+```
 
 ## Contribuir
 Contribuições são bem-vindas, inclusive no **Hacktoberfest**: código, perfis de carros, textos explicativos e testes no seu carro. Não tem build, então basta clonar, rodar o servidor acima e usar o **Modo demonstração**.
